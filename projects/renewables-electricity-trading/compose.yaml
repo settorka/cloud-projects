@@ -1,0 +1,139 @@
+name: renewables-electricity-trading
+x-env: &env
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Copy .env.example to .env}
+  DB_HOST: postgres
+  DB_NAME: renewables
+  AWS_ACCESS_KEY_ID: local
+  AWS_SECRET_ACCESS_KEY: local
+  AWS_DEFAULT_REGION: eu-north-1
+  SQS_ENDPOINT_URL: http://elasticmq:9324
+  TRADER_TOKEN: ${TRADER_TOKEN:?Set local tokens}
+  RISK_TOKEN: ${RISK_TOKEN:?Set local tokens}
+  VIEWER_TOKEN: ${VIEWER_TOKEN:?Set local tokens}
+x-process: &process
+  restart: unless-stopped
+  init: true
+  stop_grace_period: 40s
+  mem_limit: 384m
+  cpus: 0.5
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+x-api: &api
+  <<: *process
+  healthcheck:
+    test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+    interval: 10s
+    timeout: 5s
+    retries: 6
+services:
+  postgres:
+    image: postgres:17.7-bookworm
+    environment:
+      POSTGRES_DB: renewables
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set database password}
+      TRADING_DB_PASSWORD: ${TRADING_DB_PASSWORD:?Set database password}
+      MARKET_DATA_DB_PASSWORD: ${MARKET_DATA_DB_PASSWORD:?Set database password}
+      VALUATION_DB_PASSWORD: ${VALUATION_DB_PASSWORD:?Set database password}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./deploy/local/init-db.sql:/docker-entrypoint-initdb.d/10-services.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d renewables"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    mem_limit: 768m
+    cpus: 1
+  elasticmq:
+    image: softwaremill/elasticmq-native:1.6.12
+    volumes: ["./deploy/local/elasticmq.conf:/opt/elasticmq.conf:ro"]
+    mem_limit: 256m
+    cpus: 0.5
+  trading-init:
+    build: ./services/trading
+    environment: &trading-env
+      <<: *env
+      DB_USER: trading
+      DB_PASSWORD: ${TRADING_DB_PASSWORD}
+      CONSUMER_QUEUE: trading-input
+    command: [sh, -c, "python manage.py migrate --noinput && python manage.py seed"]
+    depends_on: {postgres: {condition: service_healthy}}
+  market-data-init:
+    build: ./services/market-data
+    environment: &market-env
+      <<: *env
+      DB_USER: market_data
+      DB_PASSWORD: ${MARKET_DATA_DB_PASSWORD}
+    command: [sh, -c, "python manage.py migrate --noinput && python manage.py seed"]
+    depends_on: {postgres: {condition: service_healthy}}
+  valuation-init:
+    build: ./services/valuation
+    environment: &valuation-env
+      <<: *env
+      DB_USER: valuation
+      DB_PASSWORD: ${VALUATION_DB_PASSWORD}
+      CONSUMER_QUEUE: valuation-input
+    command: [sh, -c, "python manage.py migrate --noinput && python manage.py seed"]
+    depends_on: {postgres: {condition: service_healthy}}
+  trading:
+    <<: *api
+    build: ./services/trading
+    environment: *trading-env
+    ports: ["127.0.0.1:8001:8000"]
+    depends_on: {trading-init: {condition: service_completed_successfully}}
+  trading-worker:
+    <<: *process
+    build: ./services/trading
+    environment: *trading-env
+    command: [python, manage.py, worker, --concurrency, "2"]
+    depends_on:
+      trading-init: {condition: service_completed_successfully}
+      elasticmq: {condition: service_started}
+  market-data:
+    volumes: ["./fixtures:/fixtures:ro"]
+    <<: *api
+    build: ./services/market-data
+    environment: *market-env
+    ports: ["127.0.0.1:8002:8000"]
+    depends_on: {market-data-init: {condition: service_completed_successfully}}
+  market-data-worker:
+    <<: *process
+    build: ./services/market-data
+    environment: *market-env
+    command: [python, manage.py, worker]
+    depends_on:
+      market-data-init: {condition: service_completed_successfully}
+      elasticmq: {condition: service_started}
+  valuation:
+    <<: *api
+    build: ./services/valuation
+    environment: *valuation-env
+    ports: ["127.0.0.1:8003:8000"]
+    depends_on: {valuation-init: {condition: service_completed_successfully}}
+  valuation-worker:
+    <<: *process
+    build: ./services/valuation
+    environment: *valuation-env
+    command: [python, manage.py, worker, --concurrency, "2"]
+    depends_on:
+      valuation-init: {condition: service_completed_successfully}
+      elasticmq: {condition: service_started}
+  scheduler:
+    <<: *process
+    build: ./services/market-data
+    profiles: [live]
+    environment: *market-env
+    command: [python, manage.py, schedule]
+    depends_on: {market-data-init: {condition: service_completed_successfully}}
+  simulator:
+    build: ./services/trading
+    profiles: [tools]
+    environment:
+      TRADER_TOKEN: ${TRADER_TOKEN}
+    volumes: ["./tools:/tools:ro"]
+    command: [python, /tools/simulator.py, --url, http://trading:8000, --requests, "100", --rate, "10"]
+    depends_on: {trading: {condition: service_healthy}}
+volumes:
+  postgres-data:
