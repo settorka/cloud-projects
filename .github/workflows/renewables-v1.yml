@@ -3,7 +3,7 @@ on:
   pull_request:
     paths: ['projects/renewables-electricity-trading/**', '.github/workflows/renewables-v1.yml']
   push:
-    branches: [main, python-microservice-django]
+    branches: [main, microservice-django-v2-dev-aws]
     paths: ['projects/renewables-electricity-trading/**', '.github/workflows/renewables-v1.yml']
   workflow_dispatch:
 permissions:
@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 25
     defaults:
       run:
-        working-directory: projects/renewables-electricity-trading
+        working-directory: projects/renewables-electricity-trading/v1
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
