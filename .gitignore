@@ -1,0 +1,53 @@
+# macOS and local editor settings
+.DS_Store
+._*
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local environment and secrets (keep safe examples trackable)
+.env
+.env.*
+!.env.example
+!.env.*.example
+# Local AWS authentication bootstrap policy
+/github-trust-policy.json
+.venv/
+venv/
+
+# Python caches, test output and packaging
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+.tox/
+.nox/
+
+# Django local development data
+db.sqlite3
+db.sqlite3-journal
+
+# Go test binaries
+*.test
+
+# Terraform local working data, state and crash reports
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfplan
+*.tfvars
+*.tfvars.json
+!*.example.tfvars
+!*.example.tfvars.json
+
+# Dependency lockfiles, Django migrations and Terraform's
+# .terraform.lock.hcl belong in version control.
+# Add project-specific build/output rules inside each project.
