@@ -1,0 +1,47 @@
+name: Renewables V1
+on:
+  pull_request:
+    paths: ['projects/renewables-electricity-trading/**', '.github/workflows/renewables-v1.yml']
+  push:
+    branches: [main, python-microservice-django]
+    paths: ['projects/renewables-electricity-trading/**', '.github/workflows/renewables-v1.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: renewables-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: projects/renewables-electricity-trading
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.13.5'
+          python-version: '3.11'
+          enable-cache: true
+      - name: Lint and contracts
+        run: make lint
+      - name: Build and start Compose
+        run: make up
+      - name: PostgreSQL tests
+        run: make test
+      - name: End-to-end and worker recovery
+        run: |
+          make e2e
+          make broker-test
+      - name: Restore rehearsal
+        run: |
+          docker compose --env-file .env.example stop trading-worker market-data-worker valuation-worker
+          uv run --project services/trading python tools/recovery_check.py
+      - name: Diagnostics
+        if: failure()
+        run: docker compose --env-file .env.example logs --no-color --tail 100
+      - name: Stop containers
+        if: always()
+        run: docker compose --env-file .env.example -f compose.yaml -f compose.test.yaml down --volumes --remove-orphans
