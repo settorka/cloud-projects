@@ -1,4 +1,4 @@
-name: Renewables V1
+name: Renewables V1 and V2
 on:
   pull_request:
     paths: ['projects/renewables-electricity-trading/**', '.github/workflows/renewables-v1.yml']
@@ -13,11 +13,16 @@ concurrency:
   cancel-in-progress: true
 jobs:
   verify:
+    name: Verify ${{ matrix.version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [v1, v2]
     runs-on: ubuntu-latest
     timeout-minutes: 25
     defaults:
       run:
-        working-directory: projects/renewables-electricity-trading/v1
+        working-directory: projects/renewables-electricity-trading/${{ matrix.version }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
