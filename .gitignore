@@ -35,6 +35,7 @@ db.sqlite3-journal
 
 # Go test binaries
 *.test
+!Dockerfile.test
 
 # Terraform local working data, state and crash reports
 .terraform/
