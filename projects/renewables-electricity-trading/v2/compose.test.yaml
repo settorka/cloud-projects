@@ -1,0 +1,28 @@
+# Explicit test-only administrator credentials. Never use these for application processes.
+x-test-env: &test-env
+  DJANGO_SECRET_KEY: test-only
+  DB_HOST: postgres
+  DB_NAME: renewables
+  DB_SCHEMA: public
+  DB_USER: postgres
+  DB_PASSWORD: ${POSTGRES_PASSWORD}
+  AWS_ACCESS_KEY_ID: local
+  AWS_SECRET_ACCESS_KEY: local
+  AWS_DEFAULT_REGION: eu-north-1
+  SQS_ENDPOINT_URL: http://elasticmq:9324
+services:
+  test-trading:
+    build: {context: ./services/trading, dockerfile: Dockerfile.test}
+    environment: *test-env
+    command: [pytest, -q]
+    depends_on: {postgres: {condition: service_healthy}}
+  test-market-data:
+    build: {context: ./services/market-data, dockerfile: Dockerfile.test}
+    environment: *test-env
+    command: [pytest, -q]
+    depends_on: {postgres: {condition: service_healthy}}
+  test-valuation:
+    build: {context: ./services/valuation, dockerfile: Dockerfile.test}
+    environment: *test-env
+    command: [pytest, -q]
+    depends_on: {postgres: {condition: service_healthy}}
