@@ -3,7 +3,7 @@ on:
   pull_request:
     paths: ['projects/renewables-electricity-trading/**', '.github/workflows/renewables-v1.yml']
   push:
-    branches: [main, microservice-django-v2-dev-aws]
+    branches: [main, codex/renewables-v2-aws]
     paths: ['projects/renewables-electricity-trading/**', '.github/workflows/renewables-v1.yml']
   workflow_dispatch:
 permissions:
@@ -23,6 +23,8 @@ jobs:
     defaults:
       run:
         working-directory: projects/renewables-electricity-trading/${{ matrix.version }}
+    env:
+      CONFIG_FILE: ${{ matrix.version == 'v2' && 'v2.env' || '.env.example' }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -30,6 +32,9 @@ jobs:
           version: '0.13.5'
           python-version: '3.11'
           enable-cache: true
+      - name: Initialize V2 configuration
+        if: matrix.version == 'v2'
+        run: cp v2.env.example v2.env
       - name: Lint and contracts
         run: make lint
       - name: Build and start Compose
@@ -42,11 +47,11 @@ jobs:
           make broker-test
       - name: Restore rehearsal
         run: |
-          docker compose --env-file .env.example stop trading-worker market-data-worker valuation-worker
+          docker compose --env-file "$CONFIG_FILE" stop trading-worker market-data-worker valuation-worker
           uv run --project services/trading python tools/recovery_check.py
       - name: Diagnostics
         if: failure()
-        run: docker compose --env-file .env.example logs --no-color --tail 100
+        run: docker compose --env-file "$CONFIG_FILE" logs --no-color --tail 100
       - name: Stop containers
         if: always()
-        run: docker compose --env-file .env.example -f compose.yaml -f compose.test.yaml down --volumes --remove-orphans
+        run: docker compose --env-file "$CONFIG_FILE" -f compose.yaml -f compose.test.yaml down --volumes --remove-orphans

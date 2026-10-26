@@ -9,7 +9,7 @@ make load
 Explicit stress run (example-only local token is already passed to the tools container):
 
 ```sh
-docker compose --env-file .env --profile tools run --rm simulator python /tools/simulator.py --url http://trading:8000 --requests 1000 --rate 1000 --concurrency 100 --duplicates
+docker compose --env-file v2.env --profile tools run --rm simulator python /tools/simulator.py --url http://trading:8000 --requests 1000 --rate 1000 --concurrency 100 --duplicates
 ```
 
 This targets one portfolio/interval and deliberately exposes lock contention. It is not a promise of 1,000 accepted trades/s. Trades use tiny quantities to limit accidental exposure. Re-seed or use an isolated portfolio before comparing runs; existing positions affect legitimate rejections.

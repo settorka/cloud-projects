@@ -12,7 +12,7 @@ Record request ID, operation, portfolio and idempotency key in your private inci
 Diagnosis: inspect Trading JSON logs, `/v1/status`, portfolio positions/breaches and current trade history. Check PostgreSQL blocking sessions from a privileged local shell:
 
 ```sh
-docker compose --env-file .env exec -T postgres psql -U postgres -d renewables -c "SELECT pid, state, wait_event_type, wait_event, now()-xact_start AS age FROM pg_stat_activity WHERE datname='renewables';"
+docker compose --env-file v2.env exec -T postgres psql -U postgres -d renewables -c "SELECT pid, state, wait_event_type, wait_event, now()-xact_start AS age FROM pg_stat_activity WHERE datname='renewables';"
 ```
 
 Do not kill transactions or submit a new key merely because the client timed out. External I/O is not part of booking; an Elexon outage is relevant only if required local forecasts expire.

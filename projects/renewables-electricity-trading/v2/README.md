@@ -1,6 +1,10 @@
 # Renewables electricity trading — V2 development baseline
 
-> Copied from V1 as the starting point for AWS development. AWS Terraform, deployment, OpenTelemetry and expanded lineage are not implemented by this copy.
+> V2 adds explicit OpenTelemetry instrumentation, durable event-attempt state machines, an AWS development runtime and Terraform configuration. AWS deployment and performance acceptance still require an authenticated plan and real deployment checks.
+
+See [configuration and v2.env loading](docs/configuration.md).
+
+See [AWS architecture, budget and quantified bounds](docs/aws-design.md), [process lineage](docs/process-lineage.md) and [AWS runbooks](docs/runbooks/README.md). V1 remains the preserved local reference.
 
 V2 uses Compose project `renewables-electricity-trading-v2`, an independent database volume and default ports 8101–8103. V1 keeps its existing project identity, data and ports 8001–8003. Override V2 ports through its environment file. Do not point both versions at one database.
 
@@ -11,7 +15,7 @@ A simulated Great Britain renewable electricity trading desk, implemented as thr
 Requirements: Docker Engine/Desktop with Compose v2, GNU Make (optional), and uv for host-side tooling. Allow roughly 4 GB of available Docker memory. Run all commands in this directory.
 
 ```sh
-cp .env.example .env
+cp v2.env.example v2.env
 make up
 make demo
 ```
@@ -67,7 +71,7 @@ See [design and invariants](docs/design.md), [observability](docs/observability.
 ## Real Elexon data
 
 ```sh
-docker compose --env-file .env exec -T market-data python manage.py import_elexon --dataset wind
+docker compose --env-file v2.env exec -T market-data python manage.py import_elexon --dataset wind
 make live   # Opt-in scheduler, wind import every five minutes
 ```
 
@@ -79,4 +83,4 @@ Contains BMRS data © Elexon Limited copyright and database right 2026. [BMRS li
 
 ## Delivery milestones
 
-V1: local Compose and verified business workflow. V2: AWS dev-ready Terraform/Fargate/SQS/Scheduler, existing OIDC reuse and live integration checks. V3: production operating procedures, restoration evidence, security, cost and measured service-level limits. No cloud resources are provisioned by this project yet.
+V1 preserves the local business workflow. V2 adds tracing, durable process lineage and a Terraform-configured Lightsail/SQS/EventBridge development environment under the $50 budget profile. AWS deployment acceptance is pending; Fargate and RDS are outside this profile. V3 covers production operating requirements and measured readiness. No cloud resources have been provisioned by these changes.

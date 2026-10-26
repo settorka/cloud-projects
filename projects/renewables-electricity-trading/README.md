@@ -5,7 +5,7 @@ Versioned implementations of the GB renewable electricity trading backend.
 | Folder | Purpose | Status |
 |---|---|---|
 | [v1](v1/README.md) | Local Docker Compose implementation | Existing implementation moved intact |
-| [v2](v2/README.md) | AWS development deployment | Independent V1 baseline copy; AWS work pending |
+| [v2](v2/README.md) | AWS development deployment | OTel, process lineage and Terraform configuration; AWS deployment acceptance pending |
 | [v3](v3/README.md) | Production deployment readiness | Planning placeholder |
 
 Run commands from the selected version directory, not this project index. V1 owns its dependencies, containers, fixtures, tests and runbooks. AWS deployment has not been provisioned.

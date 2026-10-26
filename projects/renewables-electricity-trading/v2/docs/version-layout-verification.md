@@ -1,3 +1,5 @@
+> Historical baseline-copy verification. Subsequent V2 tracing, lineage and AWS changes are recorded in [V2 implementation verification](v2-implementation-verification.md).
+
 # V2 baseline verification
 
 V2 begins as a copy of tracked V1 files. Local state, virtual environments, credentials, backups and caches are excluded. Business-service implementations, migrations, dependencies and event contracts are unchanged.

@@ -18,7 +18,7 @@ For a currently breached interval, the distance outside the configured bounds mu
 
 ## Asynchronous delivery
 
-Envelopes have a UUID, schema version, entity ID, source revision and occurrence time. The canonical contract is copied into independently built images; `tools/check_contracts.py` prevents divergence. Local publishers send directly to consumer queues. AWS event routing can replace this transport without changing the booking transaction.
+Envelopes have a UUID, schema version, entity ID, source revision and occurrence time. The canonical contract is copied into independently built images; `tools/check_contracts.py` prevents divergence. Local publishers send directly to consumer queues. V2 can publish through EventBridge, with destination-specific rules forwarding envelopes to SQS without changing the booking transaction.
 
 An outbox relay locks one pending destination record, sends, then records publication. A crash after send may repeat delivery. Consumer transactions serialize through a service-local guard, apply monotonic source revisions, record inbox identity, then acknowledge SQS. This is idempotent application over at-least-once transport, not exactly-once networking. The guard prioritizes V1 correctness over maximum consumer throughput.
 
@@ -31,3 +31,8 @@ Purchase mark = MWh × (mark − contract price); sale mark uses the opposite si
 ## Deliberate V1 limits
 
 No official notifications, exchange execution, clearing, collateral, tax, derivatives pricing or real settlement. One currency, GB only. AWS readiness and production security are later milestones. Demo profiles bind to loopback and use known tokens. No full global-latency or high-availability promise. External 1,000-request/s tests report admission and completion independently.
+
+
+## V2 additions
+
+[Durable process attempts and W3C tracing](process-lineage.md) augment existing business audit. [AWS operating bounds](aws-design.md) define the single-host development deployment and explicitly unproven acceptance targets.
