@@ -1,0 +1,181 @@
+name: ${COMPOSE_PROJECT_NAME:?Load v2.env}
+x-process: &process
+  restart: unless-stopped
+  init: true
+  stop_grace_period: ${STOP_GRACE_PERIOD}
+  mem_limit: ${PROCESS_MEMORY}
+  cpus: ${PROCESS_CPUS}
+  logging:
+    driver: json-file
+    options: {max-size: "${DOCKER_LOG_MAX_SIZE}", max-file: "${DOCKER_LOG_MAX_FILES}"}
+x-env: &env
+  DB_HOST: ${DB_HOST}
+  DB_NAME: ${DB_NAME}
+  AWS_SHARED_CREDENTIALS_FILE: ${CONTAINER_AWS_CREDENTIALS_FILE}
+  EVENT_TRANSPORT: ${EVENT_TRANSPORT}
+  OTEL_ENABLED: ${OTEL_ENABLED}
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+  DEPLOYMENT_ENVIRONMENT: ${DEPLOYMENT_ENVIRONMENT}
+  APP_VERSION: ${IMAGE_TAG:?Set immutable image tag}
+  SQS_WAIT_SECONDS: ${SQS_WAIT_SECONDS}
+x-mounts: &mounts
+  - ${AWS_CREDENTIALS_DIR}:/run/aws:ro
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE}
+    restart: unless-stopped
+    mem_limit: ${POSTGRES_MEMORY}
+    cpus: ${POSTGRES_CPUS}
+    command: [postgres, -c, "max_connections=${POSTGRES_MAX_CONNECTIONS}", -c, "shared_buffers=${POSTGRES_SHARED_BUFFERS}", -c, log_statement=none]
+    env_file: ${V2_ENV_FILE:-../../v2.env}
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../local/init-db.sql:/docker-entrypoint-initdb.d/10-services.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d $$POSTGRES_DB"]
+      interval: ${POSTGRES_HEALTH_INTERVAL}
+      timeout: ${POSTGRES_HEALTH_TIMEOUT}
+      retries: ${POSTGRES_HEALTH_RETRIES}
+    logging:
+      driver: json-file
+      options: {max-size: "${DOCKER_LOG_MAX_SIZE}", max-file: "${DOCKER_LOG_MAX_FILES}"}
+  trading-init:
+    image: ${ECR_REGISTRY}/trading:${IMAGE_TAG}
+    env_file: ${V2_ENV_FILE:-../../v2.env}
+    environment: &trading-env
+      <<: *env
+      DB_USER: ${TRADING_DB_USER}
+      DB_PASSWORD: ${TRADING_DB_PASSWORD:?Set password}
+      CONSUMER_QUEUE: ${TRADING_QUEUE}
+    volumes: *mounts
+    command: [sh, -c, "python manage.py migrate --noinput && python manage.py seed"]
+    depends_on: {postgres: {condition: service_healthy}}
+  trading:
+    <<: *process
+    image: ${ECR_REGISTRY}/trading:${IMAGE_TAG}
+    env_file: ${V2_ENV_FILE:-../../v2.env}
+    environment: *trading-env
+    volumes: *mounts
+    command: [gunicorn, config.wsgi:application, --bind, "0.0.0.0:8000", --workers, "${GUNICORN_WORKERS}", --threads, "${GUNICORN_THREADS}", --timeout, "${GUNICORN_TIMEOUT_SECONDS}", --access-logfile, /dev/null]
+    depends_on: {trading-init: {condition: service_completed_successfully}}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: ${API_HEALTH_INTERVAL}
+      timeout: ${API_HEALTH_TIMEOUT}
+      retries: ${API_HEALTH_RETRIES}
+  trading-worker:
+    <<: *process
+    image: ${ECR_REGISTRY}/trading:${IMAGE_TAG}
+    env_file: ${V2_ENV_FILE:-../../v2.env}
+    environment: *trading-env
+    volumes: *mounts
+    command: [python, manage.py, worker]
+    depends_on: {trading-init: {condition: service_completed_successfully}}
+  market-data-init:
+    image: ${ECR_REGISTRY}/market-data:${IMAGE_TAG}
+    env_file: ${V2_ENV_FILE:-../../v2.env}
+    environment: &market_data-env
+      <<: *env
+      DB_USER: ${MARKET_DATA_DB_USER}
+      DB_PASSWORD: ${MARKET_DATA_DB_PASSWORD:?Set password}
+      CONSUMER_QUEUE: ""
+    volumes: *mounts
+    command: [sh, -c, "python manage.py migrate --noinput && python manage.py seed"]
+    depends_on: {postgres: {condition: service_healthy}}
+  market-data:
+    <<: *process
+    image: ${ECR_REGISTRY}/market-data:${IMAGE_TAG}
+    env_file: ${V2_ENV_FILE:-../../v2.env}
+    environment: *market_data-env
+    volumes: *mounts
+    command: [gunicorn, config.wsgi:application, --bind, "0.0.0.0:8000", --workers, "${GUNICORN_WORKERS}", --threads, "${GUNICORN_THREADS}", --timeout, "${GUNICORN_TIMEOUT_SECONDS}", --access-logfile, /dev/null]
+    depends_on: {market-data-init: {condition: service_completed_successfully}}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: ${API_HEALTH_INTERVAL}
+      timeout: ${API_HEALTH_TIMEOUT}
+      retries: ${API_HEALTH_RETRIES}
+  market-data-worker:
+    <<: *process
+    image: ${ECR_REGISTRY}/market-data:${IMAGE_TAG}
+    env_file: ${V2_ENV_FILE:-../../v2.env}
+    environment: *market_data-env
+    volumes: *mounts
+    command: [python, manage.py, worker]
+    depends_on: {market-data-init: {condition: service_completed_successfully}}
+  valuation-init:
+    image: ${ECR_REGISTRY}/valuation:${IMAGE_TAG}
+    env_file: ${V2_ENV_FILE:-../../v2.env}
+    environment: &valuation-env
+      <<: *env
+      DB_USER: ${VALUATION_DB_USER}
+      DB_PASSWORD: ${VALUATION_DB_PASSWORD:?Set password}
+      CONSUMER_QUEUE: ${VALUATION_QUEUE}
+    volumes: *mounts
+    command: [sh, -c, "python manage.py migrate --noinput && python manage.py seed"]
+    depends_on: {postgres: {condition: service_healthy}}
+  valuation:
+    <<: *process
+    image: ${ECR_REGISTRY}/valuation:${IMAGE_TAG}
+    env_file: ${V2_ENV_FILE:-../../v2.env}
+    environment: *valuation-env
+    volumes: *mounts
+    command: [gunicorn, config.wsgi:application, --bind, "0.0.0.0:8000", --workers, "${GUNICORN_WORKERS}", --threads, "${GUNICORN_THREADS}", --timeout, "${GUNICORN_TIMEOUT_SECONDS}", --access-logfile, /dev/null]
+    depends_on: {valuation-init: {condition: service_completed_successfully}}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: ${API_HEALTH_INTERVAL}
+      timeout: ${API_HEALTH_TIMEOUT}
+      retries: ${API_HEALTH_RETRIES}
+  valuation-worker:
+    <<: *process
+    image: ${ECR_REGISTRY}/valuation:${IMAGE_TAG}
+    env_file: ${V2_ENV_FILE:-../../v2.env}
+    environment: *valuation-env
+    volumes: *mounts
+    command: [python, manage.py, worker]
+    depends_on: {valuation-init: {condition: service_completed_successfully}}
+  caddy:
+    image: ${CADDY_IMAGE}
+    restart: unless-stopped
+    mem_limit: ${CADDY_MEMORY}
+    cpus: ${CADDY_CPUS}
+    environment:
+      DOMAIN_NAME: ${DOMAIN_NAME}
+      TLS_MODE: ${TLS_MODE}
+    ports: ["${HTTPS_BIND_ADDRESS}:${HTTP_PORT}:80", "${HTTPS_BIND_ADDRESS}:${HTTPS_PORT}:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [trading, market-data, valuation]
+    logging:
+      driver: json-file
+      options: {max-size: "${DOCKER_LOG_MAX_SIZE}", max-file: "${DOCKER_LOG_MAX_FILES}"}
+  otel-collector:
+    env_file: ${V2_ENV_FILE:-../../v2.env}
+    image: ${OTEL_COLLECTOR_IMAGE}
+    restart: unless-stopped
+    user: "0:0"
+    mem_limit: ${COLLECTOR_MEMORY}
+    cpus: ${COLLECTOR_CPUS}
+    environment:
+      AWS_REGION: ${AWS_DEFAULT_REGION}
+      AWS_SHARED_CREDENTIALS_FILE: ${CONTAINER_AWS_CREDENTIALS_FILE}
+      CLOUDWATCH_LOG_GROUP: ${CLOUDWATCH_LOG_GROUP}
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+      - ${AWS_CREDENTIALS_DIR}:/run/aws:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - collector-data:/var/lib/otelcol
+    # Avoid ingesting the collector's own exporter errors recursively.
+    logging:
+      driver: local
+      options: {max-size: "${DOCKER_LOG_MAX_SIZE}", max-file: "${DOCKER_LOG_MAX_FILES}"}
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:
+  collector-data:

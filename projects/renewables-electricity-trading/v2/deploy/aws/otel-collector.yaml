@@ -1,0 +1,58 @@
+extensions:
+  file_storage:
+    directory: /var/lib/otelcol
+    create_directory: true
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+  filelog:
+    include: [/var/lib/docker/containers/*/*-json.log]
+    start_at: end
+    storage: file_storage
+    max_log_size: 64KiB
+    operators:
+      - type: json_parser
+        timestamp:
+          parse_from: attributes.time
+          layout_type: gotime
+          layout: '2006-01-02T15:04:05.999999999Z07:00'
+      - type: move
+        from: attributes.log
+        to: body
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: ${env:COLLECTOR_LIMIT_MIB}
+    spike_limit_mib: ${env:COLLECTOR_SPIKE_MIB}
+  batch:
+    timeout: ${env:COLLECTOR_BATCH_TIMEOUT}
+    send_batch_size: ${env:COLLECTOR_BATCH_SIZE}
+    send_batch_max_size: ${env:COLLECTOR_BATCH_MAX_SIZE}
+exporters:
+  awsxray:
+    region: ${env:AWS_REGION}
+    local_mode: true
+    num_workers: ${env:COLLECTOR_XRAY_WORKERS}
+    request_timeout_seconds: ${env:COLLECTOR_XRAY_TIMEOUT_SECONDS}
+    max_retries: ${env:COLLECTOR_XRAY_RETRIES}
+  awscloudwatchlogs:
+    region: ${env:AWS_REGION}
+    log_group_name: ${env:CLOUDWATCH_LOG_GROUP}
+    log_stream_name: application
+    raw_log: true
+service:
+  extensions: [file_storage]
+  telemetry:
+    logs:
+      level: warn
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [awsxray]
+    logs:
+      receivers: [filelog]
+      processors: [memory_limiter, batch]
+      exporters: [awscloudwatchlogs]

@@ -1,0 +1,36 @@
+name: Renewables Terraform and AWS configuration
+on:
+  pull_request:
+    paths: ['projects/renewables-electricity-trading/v2/deploy/**', '.github/workflows/renewables-terraform.yml']
+  push:
+    branches: [main, codex/renewables-v2-aws]
+    paths: ['projects/renewables-electricity-trading/v2/deploy/**', '.github/workflows/renewables-terraform.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: projects/renewables-electricity-trading/v2
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp v2.aws.env.example v2.env
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.17.0'
+      - run: terraform fmt -check -recursive deploy/terraform
+      - run: terraform -chdir=deploy/terraform/bootstrap init -backend=false -input=false -lockfile=readonly
+      - run: terraform -chdir=deploy/terraform/bootstrap validate
+      - run: terraform -chdir=deploy/terraform/dev init -backend=false -input=false -lockfile=readonly
+      - run: terraform -chdir=deploy/terraform/dev validate
+      - run: terraform -chdir=deploy/terraform/dev test
+      - name: Validate AWS runtime and scripts
+        run: |
+          V2_ENV_FILE="$PWD/v2.env" docker compose --env-file v2.env -f deploy/aws/compose.yaml config --quiet
+          for script in deploy/aws/*.sh deploy/terraform/templates/*.sh; do bash -n "$script"; done
+          docker run --rm --env-file v2.env -v "$PWD/deploy/aws/otel-collector.yaml:/etc/config.yaml:ro" -e AWS_REGION=eu-west-2 -e CLOUDWATCH_LOG_GROUP=/renewables/validation otel/opentelemetry-collector-contrib:0.139.0 validate --config=/etc/config.yaml
+          docker run --rm --env-file v2.env -v "$PWD/deploy/local/otel-collector.yaml:/etc/config.yaml:ro" otel/opentelemetry-collector-contrib:0.139.0 validate --config=/etc/config.yaml
+          docker run --rm --env-file v2.env -v "$PWD/deploy/aws/Caddyfile:/etc/caddy/Caddyfile:ro" -e DOMAIN_NAME=validation.example.com caddy:2.10.2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
