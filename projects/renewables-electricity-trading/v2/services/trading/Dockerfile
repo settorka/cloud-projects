@@ -9,4 +9,4 @@ COPY . .
 RUN groupadd --gid 10001 app && useradd --uid 10001 --gid app --no-create-home app
 USER app
 EXPOSE 8000
-CMD ["gunicorn","config.wsgi:application","--bind","0.0.0.0:8000","--workers","1","--threads","4","--timeout","30","--access-logfile","/dev/null"]
+CMD ["sh", "-c", "exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers \"$GUNICORN_WORKERS\" --threads \"$GUNICORN_THREADS\" --timeout \"$GUNICORN_TIMEOUT_SECONDS\" --access-logfile /dev/null"]

@@ -21,4 +21,4 @@ class Command(BaseCommand):
             )
             if result.returncode:
                 self.stderr.write("Import failed; inspect ImportRun and source status")
-            stop.wait(int(os.getenv("IMPORT_INTERVAL_SECONDS", "300")))
+            stop.wait(int(os.environ["IMPORT_INTERVAL_SECONDS"]))

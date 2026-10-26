@@ -1,4 +1,5 @@
-ENV_FILE ?= $(if $(wildcard .env),.env,.env.example)
+ENV_FILE ?= $(abspath v2.env)
+export V2_ENV_FILE = $(ENV_FILE)
 DC = docker compose --env-file $(ENV_FILE)
 TEST_DC = $(DC) -f compose.yaml -f compose.test.yaml
 .PHONY: up down demo test e2e lint logs reconcile load live

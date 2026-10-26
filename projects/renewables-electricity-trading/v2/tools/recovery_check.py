@@ -1,7 +1,10 @@
 """Restore a local dump into a unique rehearsal database, verify, and clean it up."""
 
 import argparse
+import os
+from environment import load_environment
 import json
+import re
 import subprocess
 import time
 import uuid
@@ -9,24 +12,37 @@ import uuid
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env-file", default=".env.example")
+    parser.add_argument("--env-file", default=None)
     args = parser.parse_args()
-    base = ["docker", "compose", "--env-file", args.env_file]
+    env_file = str(load_environment(args.env_file))
+    database = os.environ["DB_NAME"]
+    base = ["docker", "compose", "--env-file", env_file]
     target = "restore_" + uuid.uuid4().hex[:12]
 
     def command(*argv, input=None):
         return subprocess.run([*base, *argv], input=input, capture_output=True, check=True).stdout
 
-    query = "SELECT (SELECT count(*) FROM trading.app_trade), (SELECT count(*) FROM trading.app_traderevision), (SELECT count(*) FROM market_data.app_marketrevision), (SELECT count(*) FROM valuation.app_valuationrun)"
+    schemas = [
+        os.environ[key]
+        for key in ("TRADING_DB_SCHEMA", "MARKET_DATA_DB_SCHEMA", "VALUATION_DB_SCHEMA")
+    ]
+    if not all(re.fullmatch(r"[a-z_][a-z0-9_]*", name) for name in schemas):
+        raise ValueError("Invalid schema identifier")
+    trading, market, valuation = schemas
+    query = (
+        f"SELECT (SELECT count(*) FROM {trading}.app_trade), "
+        f"(SELECT count(*) FROM {trading}.app_traderevision), "
+        f"(SELECT count(*) FROM {market}.app_marketrevision), "
+        f"(SELECT count(*) FROM {valuation}.app_valuationrun)"
+    )
+
     start = time.monotonic()
     created = False
     try:
         # Caller must quiesce writers for a meaningful cross-check.
-        dump = command(
-            "exec", "-T", "postgres", "pg_dump", "-U", "postgres", "-d", "renewables", "-Fc"
-        )
+        dump = command("exec", "-T", "postgres", "pg_dump", "-U", "postgres", "-d", database, "-Fc")
         before = command(
-            "exec", "-T", "postgres", "psql", "-U", "postgres", "-d", "renewables", "-Atc", query
+            "exec", "-T", "postgres", "psql", "-U", "postgres", "-d", database, "-Atc", query
         )
         command("exec", "-T", "postgres", "createdb", "-U", "postgres", target)
         created = True

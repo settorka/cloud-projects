@@ -1,6 +1,7 @@
 """Bounded official-data ingestion. Aggregate inputs never become private forecasts."""
 
 import asyncio
+import os
 import hashlib
 import json
 from datetime import timedelta
@@ -9,8 +10,10 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from .models import SourceRecord, ImportRun, JobStatus
+from .telemetry import span
+from .processes import begin, move
 
-BASE = "https://data.elexon.co.uk/bmrs/api/v1"
+BASE = os.environ["ELEXON_BASE_URL"]
 ENDPOINTS = {
     "wind": "forecast/generation/wind/latest",
     "generation": "generation/actual/per-type/wind-and-solar",
@@ -19,6 +22,11 @@ ENDPOINTS = {
 
 
 async def fetch_dataset(client, name, start, end, semaphore):
+    with span("elexon.fetch", attributes={"dataset": name}):
+        return await _fetch_dataset(client, name, start, end, semaphore)
+
+
+async def _fetch_dataset(client, name, start, end, semaphore):
     async with semaphore:
         for attempt in range(3):
             try:
@@ -56,10 +64,13 @@ async def fetch_dataset(client, name, start, end, semaphore):
 async def fetch_all(names, start, end, transport=None):
     if end <= start or end - start > timedelta(days=1):
         raise ValueError("Import window must be positive and at most 24 hours")
-    semaphore = asyncio.Semaphore(2)
+    semaphore = asyncio.Semaphore(int(os.environ["ELEXON_FETCH_CONCURRENCY"]))
     async with httpx.AsyncClient(
-        timeout=httpx.Timeout(20, connect=5),
-        limits=httpx.Limits(max_connections=2),
+        timeout=httpx.Timeout(
+            float(os.environ["ELEXON_REQUEST_TIMEOUT_SECONDS"]),
+            connect=float(os.environ["ELEXON_CONNECT_TIMEOUT_SECONDS"]),
+        ),
+        limits=httpx.Limits(max_connections=int(os.environ["ELEXON_FETCH_CONCURRENCY"])),
         transport=transport,
         follow_redirects=False,
     ) as client:
@@ -96,11 +107,18 @@ def persist(records):
         return count
 
 
+@span("elexon.import")
 def import_live(names, start, end):
     run = ImportRun.objects.create(source="elexon", state="RUNNING")
+    process = begin("ingest", run.pk)
     try:
-        count = persist(asyncio.run(fetch_all(names, start, end)))
+        move(process, "FETCHING")
+        records = asyncio.run(fetch_all(names, start, end))
+        move(process, "FETCHED")
+        move(process, "PERSISTING")
+        count = persist(records)
     except Exception as exc:
+        move(process, "FAILED", type(exc).__name__)
         run.state = "FAILED"
         run.error = type(exc).__name__
         run.completed_at = timezone.now()
@@ -109,6 +127,7 @@ def import_live(names, start, end):
             name="elexon_import", defaults={"last_error": type(exc).__name__}
         )
         raise
+    move(process, "SUCCEEDED")
     run.state = "SUCCEEDED"
     run.records = count
     run.completed_at = timezone.now()

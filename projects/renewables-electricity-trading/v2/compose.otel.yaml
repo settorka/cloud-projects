@@ -1,0 +1,16 @@
+x-tracing: &tracing
+  OTEL_ENABLED: ${OTEL_DIAGNOSTIC_ENABLED}
+  OTEL_TRACES_SAMPLER_ARG: ${OTEL_DIAGNOSTIC_SAMPLE_RATIO}
+services:
+  trading:
+    environment: *tracing
+  trading-worker:
+    environment: *tracing
+  market-data:
+    environment: *tracing
+  market-data-worker:
+    environment: *tracing
+  valuation:
+    environment: *tracing
+  valuation-worker:
+    environment: *tracing

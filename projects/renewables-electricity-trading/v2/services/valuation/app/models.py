@@ -63,3 +63,36 @@ class ValuationRun(models.Model):
     results = models.JSONField()
     input_versions = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class ProcessExecution(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    kind = models.CharField(max_length=20)
+    identity = models.CharField(max_length=200, db_index=True)
+    destination = models.CharField(max_length=300, blank=True)
+    event_type = models.CharField(max_length=60, blank=True)
+    entity_id = models.CharField(max_length=200, blank=True)
+    revision = models.PositiveIntegerField(null=True)
+    state = models.CharField(max_length=20, default="CREATED")
+    sequence = models.PositiveIntegerField(default=0)
+    trace_id = models.CharField(max_length=32, blank=True)
+    span_id = models.CharField(max_length=16, blank=True)
+    error_code = models.CharField(max_length=100, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class ProcessTransition(models.Model):
+    execution = models.ForeignKey(
+        ProcessExecution, on_delete=models.CASCADE, related_name="transitions"
+    )
+    sequence = models.PositiveIntegerField()
+    previous = models.CharField(max_length=20)
+    state = models.CharField(max_length=20)
+    error_code = models.CharField(max_length=100, blank=True)
+    occurred_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["execution", "sequence"], name="unique_process_step")
+        ]

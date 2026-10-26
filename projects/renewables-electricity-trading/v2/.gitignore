@@ -1,3 +1,15 @@
 backups/
 results/
 *.dump
+
+backend.hcl
+credentials/
+.aws/
+*.pem
+*.key
+
+# Canonical runtime configuration and local overrides
+v2.env
+v2.*.env
+!v2.env.example
+!v2.aws.env.example
