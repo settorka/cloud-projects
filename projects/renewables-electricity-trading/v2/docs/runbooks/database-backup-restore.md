@@ -4,7 +4,7 @@ Backup is useful only if restoration is tested. Stop mutating clients and worker
 
 ```sh
 mkdir -p backups
-docker compose --env-file .env exec -T postgres pg_dump -U postgres -d renewables -Fc > backups/renewables.dump
+docker compose --env-file v2.env exec -T postgres pg_dump -U postgres -d renewables -Fc > backups/renewables.dump
 ```
 
 The custom dump includes all three schemas. It contains sensitive local history; `backups/` is ignored. Runtime roles are provisioned by the database bootstrap, not by this dump.
@@ -12,14 +12,14 @@ The custom dump includes all three schemas. It contains sensitive local history;
 First restore into a **new rehearsal database**, never overwrite the working database as a verification step:
 
 ```sh
-docker compose --env-file .env exec -T postgres createdb -U postgres renewables_restore
-docker compose --env-file .env exec -T postgres pg_restore -U postgres -d renewables_restore --exit-on-error < backups/renewables.dump
+docker compose --env-file v2.env exec -T postgres createdb -U postgres renewables_restore
+docker compose --env-file v2.env exec -T postgres pg_restore -U postgres -d renewables_restore --exit-on-error < backups/renewables.dump
 ```
 
 Inspect schema/table counts and ownership. Run Trading reconciliation against the rehearsal database:
 
 ```sh
-docker compose --env-file .env run --rm --no-deps -e DB_NAME=renewables_restore trading python manage.py reconcile demo
+docker compose --env-file v2.env run --rm --no-deps -e DB_NAME=renewables_restore trading python manage.py reconcile demo
 ```
 
 Run `python tools/recovery_check.py` through the Trading uv environment for an automated disposable rehearsal with cleanup. It verifies table counts and reconciliation and drops only its unique rehearsal database afterward.

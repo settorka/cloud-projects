@@ -1,3 +1,4 @@
+from .telemetry import span
 from datetime import datetime, timedelta, timezone as dt_timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo
@@ -20,6 +21,7 @@ def scenario_start():
     return datetime(tomorrow.year, tomorrow.month, tomorrow.day, 13, tzinfo=dt_timezone.utc)
 
 
+@span("market-data.write_value")
 def write_value(
     kind, portfolio, start, quantity, published_at, valid_until, provenance="synthetic"
 ):

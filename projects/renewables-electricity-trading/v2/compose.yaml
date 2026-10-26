@@ -1,36 +1,41 @@
-name: renewables-electricity-trading-v2
+name: ${COMPOSE_PROJECT_NAME:?Load v2.env}
 x-env: &env
-  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Copy .env.example to .env}
-  DB_HOST: postgres
-  DB_NAME: renewables
-  AWS_ACCESS_KEY_ID: local
-  AWS_SECRET_ACCESS_KEY: local
-  AWS_DEFAULT_REGION: eu-north-1
-  SQS_ENDPOINT_URL: http://elasticmq:9324
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Load v2.env}
+  DB_HOST: ${DB_HOST}
+  DB_NAME: ${DB_NAME}
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+  AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+  OTEL_ENABLED: ${OTEL_ENABLED}
+  OTEL_TRACES_SAMPLER_ARG: ${OTEL_TRACES_SAMPLER_ARG}
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+  SQS_ENDPOINT_URL: ${SQS_ENDPOINT_URL}
   TRADER_TOKEN: ${TRADER_TOKEN:?Set local tokens}
   RISK_TOKEN: ${RISK_TOKEN:?Set local tokens}
   VIEWER_TOKEN: ${VIEWER_TOKEN:?Set local tokens}
 x-process: &process
+  env_file: ${V2_ENV_FILE:-v2.env}
   restart: unless-stopped
   init: true
-  stop_grace_period: 40s
-  mem_limit: 384m
-  cpus: 0.5
+  stop_grace_period: ${STOP_GRACE_PERIOD}
+  mem_limit: ${PROCESS_MEMORY}
+  cpus: ${PROCESS_CPUS}
   logging:
     driver: json-file
-    options: {max-size: "10m", max-file: "3"}
+    options: {max-size: "${DOCKER_LOG_MAX_SIZE}", max-file: "${DOCKER_LOG_MAX_FILES}"}
 x-api: &api
   <<: *process
   healthcheck:
     test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
-    interval: 10s
-    timeout: 5s
-    retries: 6
+    interval: ${API_HEALTH_INTERVAL}
+    timeout: ${API_HEALTH_TIMEOUT}
+    retries: ${API_HEALTH_RETRIES}
 services:
   postgres:
-    image: postgres:17.7-bookworm
+    env_file: ${V2_ENV_FILE:-v2.env}
+    image: ${POSTGRES_IMAGE}
     environment:
-      POSTGRES_DB: renewables
+      POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set database password}
       TRADING_DB_PASSWORD: ${TRADING_DB_PASSWORD:?Set database password}
@@ -40,54 +45,57 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ./deploy/local/init-db.sql:/docker-entrypoint-initdb.d/10-services.sql:ro
     healthcheck:
-      test: [CMD-SHELL, "pg_isready -U postgres -d renewables"]
-      interval: 3s
-      timeout: 3s
-      retries: 20
-    mem_limit: 768m
-    cpus: 1
+      test: [CMD-SHELL, "pg_isready -U postgres -d $$POSTGRES_DB"]
+      interval: ${POSTGRES_HEALTH_INTERVAL}
+      timeout: ${POSTGRES_HEALTH_TIMEOUT}
+      retries: ${POSTGRES_HEALTH_RETRIES}
+    mem_limit: ${POSTGRES_MEMORY}
+    cpus: ${POSTGRES_CPUS}
   elasticmq:
-    image: softwaremill/elasticmq-native:1.6.12
+    image: ${ELASTICMQ_IMAGE}
     volumes: ["./deploy/local/elasticmq.conf:/opt/elasticmq.conf:ro"]
-    mem_limit: 256m
-    cpus: 0.5
+    mem_limit: ${ELASTICMQ_MEMORY}
+    cpus: ${ELASTICMQ_CPUS}
   trading-init:
+    env_file: ${V2_ENV_FILE:-v2.env}
     build: ./services/trading
     environment: &trading-env
       <<: *env
-      DB_USER: trading
+      DB_USER: ${TRADING_DB_USER}
       DB_PASSWORD: ${TRADING_DB_PASSWORD}
-      CONSUMER_QUEUE: trading-input
+      CONSUMER_QUEUE: ${TRADING_QUEUE}
     command: [sh, -c, "python manage.py migrate --noinput && python manage.py seed"]
     depends_on: {postgres: {condition: service_healthy}}
   market-data-init:
+    env_file: ${V2_ENV_FILE:-v2.env}
     build: ./services/market-data
     environment: &market-env
       <<: *env
-      DB_USER: market_data
+      DB_USER: ${MARKET_DATA_DB_USER}
       DB_PASSWORD: ${MARKET_DATA_DB_PASSWORD}
     command: [sh, -c, "python manage.py migrate --noinput && python manage.py seed"]
     depends_on: {postgres: {condition: service_healthy}}
   valuation-init:
+    env_file: ${V2_ENV_FILE:-v2.env}
     build: ./services/valuation
     environment: &valuation-env
       <<: *env
-      DB_USER: valuation
+      DB_USER: ${VALUATION_DB_USER}
       DB_PASSWORD: ${VALUATION_DB_PASSWORD}
-      CONSUMER_QUEUE: valuation-input
+      CONSUMER_QUEUE: ${VALUATION_QUEUE}
     command: [sh, -c, "python manage.py migrate --noinput && python manage.py seed"]
     depends_on: {postgres: {condition: service_healthy}}
   trading:
     <<: *api
     build: ./services/trading
     environment: *trading-env
-    ports: ["127.0.0.1:${TRADING_PORT:-8101}:8000"]
+    ports: ["${BIND_ADDRESS}:${TRADING_PORT}:8000"]
     depends_on: {trading-init: {condition: service_completed_successfully}}
   trading-worker:
     <<: *process
     build: ./services/trading
     environment: *trading-env
-    command: [python, manage.py, worker, --concurrency, "2"]
+    command: [python, manage.py, worker]
     depends_on:
       trading-init: {condition: service_completed_successfully}
       elasticmq: {condition: service_started}
@@ -96,7 +104,7 @@ services:
     <<: *api
     build: ./services/market-data
     environment: *market-env
-    ports: ["127.0.0.1:${MARKET_DATA_PORT:-8102}:8000"]
+    ports: ["${BIND_ADDRESS}:${MARKET_DATA_PORT}:8000"]
     depends_on: {market-data-init: {condition: service_completed_successfully}}
   market-data-worker:
     <<: *process
@@ -110,13 +118,13 @@ services:
     <<: *api
     build: ./services/valuation
     environment: *valuation-env
-    ports: ["127.0.0.1:${VALUATION_PORT:-8103}:8000"]
+    ports: ["${BIND_ADDRESS}:${VALUATION_PORT}:8000"]
     depends_on: {valuation-init: {condition: service_completed_successfully}}
   valuation-worker:
     <<: *process
     build: ./services/valuation
     environment: *valuation-env
-    command: [python, manage.py, worker, --concurrency, "2"]
+    command: [python, manage.py, worker]
     depends_on:
       valuation-init: {condition: service_completed_successfully}
       elasticmq: {condition: service_started}
@@ -127,13 +135,24 @@ services:
     environment: *market-env
     command: [python, manage.py, schedule]
     depends_on: {market-data-init: {condition: service_completed_successfully}}
+  otel-collector:
+    env_file: ${V2_ENV_FILE:-v2.env}
+    image: ${OTEL_COLLECTOR_IMAGE}
+    profiles: [observability]
+    command: [--config=/etc/otelcol/config.yaml]
+    volumes: ["./deploy/local/otel-collector.yaml:/etc/otelcol/config.yaml:ro"]
+    mem_limit: ${COLLECTOR_MEMORY}
+    logging:
+      driver: json-file
+      options: {max-size: "${DOCKER_LOG_MAX_SIZE}", max-file: "${DOCKER_LOG_MAX_FILES}"}
   simulator:
+    env_file: ${V2_ENV_FILE:-v2.env}
     build: ./services/trading
     profiles: [tools]
     environment:
       TRADER_TOKEN: ${TRADER_TOKEN}
     volumes: ["./tools:/tools:ro"]
-    command: [python, /tools/simulator.py, --url, http://trading:8000, --requests, "100", --rate, "10"]
+    command: [python, /tools/simulator.py, --url, "${SIMULATOR_URL}", --requests, "${SIMULATOR_REQUESTS}", --rate, "${SIMULATOR_RATE}"]
     depends_on: {trading: {condition: service_healthy}}
 volumes:
   postgres-data:

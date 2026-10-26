@@ -1,3 +1,4 @@
+from .telemetry import span
 import hashlib
 import json
 import time
@@ -54,6 +55,7 @@ def membership(user, portfolio, write=False, risk=False):
     return item
 
 
+@span("trading.locked_portfolio")
 def locked_portfolio(pk):
     start = time.monotonic()
     try:
@@ -109,6 +111,7 @@ def replay_decision(user, key, raw, trade_id=None, cancel=False):
     return old
 
 
+@span("trading.book")
 def book(user, key, raw, validated, trade_id=None, cancel=False):
     if not key or len(key) > 100:
         raise ValidationError({"Idempotency-Key": "Required; maximum 100 characters"})
@@ -345,6 +348,7 @@ def handle_event(event):
     )
 
 
+@span("trading.reconcile")
 def reconcile(portfolio_id, repair=False):
     with transaction.atomic():
         portfolio = locked_portfolio(portfolio_id)

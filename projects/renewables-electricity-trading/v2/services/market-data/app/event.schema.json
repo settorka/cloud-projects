@@ -42,6 +42,20 @@
     },
     "data": {
       "type": "object"
+    },
+    "trace_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "traceparent": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "tracestate": {
+          "type": "string",
+          "maxLength": 512
+        }
+      }
     }
   }
 }

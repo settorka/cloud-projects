@@ -8,10 +8,10 @@ import time
 import uuid
 
 import httpx
+from environment import load_environment
 
-ENV_FILE = ".env.example"
-TOKEN = os.getenv("TRADER_TOKEN", "1" * 40)
-HEADERS = {"Authorization": f"Token {TOKEN}"}
+ENV_FILE = "v2.env"
+HEADERS = {}
 
 
 def compose(*args):
@@ -37,23 +37,12 @@ def wait_for(fn, description, timeout=40):
 def main():
     global ENV_FILE, HEADERS
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env-file", default=".env.example")
+    parser.add_argument("--env-file", default=None)
     options = parser.parse_args()
-    ENV_FILE = options.env_file
-    from pathlib import Path
-
-    values = {}
-    for line in Path(ENV_FILE).read_text().splitlines():
-        if line and not line.startswith("#") and "=" in line:
-            key, value = line.split("=", 1)
-            values[key] = value.strip().strip("\"'")
-    HEADERS = {"Authorization": "Token " + os.getenv("TRADER_TOKEN", values["TRADER_TOKEN"])}
-    trading_url = "http://127.0.0.1:" + os.getenv(
-        "TRADING_PORT", values.get("TRADING_PORT", "8101")
-    )
-    valuation_url = "http://127.0.0.1:" + os.getenv(
-        "VALUATION_PORT", values.get("VALUATION_PORT", "8103")
-    )
+    ENV_FILE = str(load_environment(options.env_file))
+    HEADERS = {"Authorization": "Token " + os.environ["TRADER_TOKEN"]}
+    trading_url = os.environ["TRADING_URL"]
+    valuation_url = os.environ["VALUATION_URL"]
     # Isolated new portfolio prevents previous manual data from changing assertions.
     portfolio = "e2e-" + uuid.uuid4().hex[:8]
     code = f"from app.models import *; from django.contrib.auth.models import User; p=Portfolio.objects.create(id='{portfolio}',name='E2E',lower_limit=0,upper_limit=200); Membership.objects.create(user=User.objects.get(username='trader'),portfolio=p,role='trader')"

@@ -1,0 +1,18 @@
+{$DOMAIN_NAME} {
+    tls {$TLS_MODE}
+    request_body {
+        max_size 64KB
+    }
+    # Public HTTP metrics/status are blocked; operators use localhost/container exec.
+    @private path /metrics /v1/status /market-data/metrics /market-data/v1/status /valuation/metrics /valuation/v1/status
+    respond @private 404
+    handle_path /market-data/* {
+        reverse_proxy market-data:8000
+    }
+    handle_path /valuation/* {
+        reverse_proxy valuation:8000
+    }
+    handle {
+        reverse_proxy trading:8000
+    }
+}

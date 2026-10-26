@@ -1,6 +1,8 @@
 """Open-loop bounded load generator. Run with a service uv environment or Compose tools profile."""
 
 import argparse
+import ssl
+from environment import load_environment
 import asyncio
 import json
 import math
@@ -41,7 +43,10 @@ async def run(args):
     pending = set()
     requests = []
     records = []
+    ca = os.environ.get("TLS_CA_FILE")
+    verify = ssl.create_default_context(cafile=ca) if ca else True
     async with httpx.AsyncClient(
+        verify=verify,
         base_url=args.url,
         headers={"Authorization": f"Token {token}"},
         timeout=10,
@@ -131,13 +136,14 @@ async def run(args):
 
 
 def main():
+    load_environment()
     p = argparse.ArgumentParser()
-    p.add_argument("--url", default="http://127.0.0.1:8101")
-    p.add_argument("--requests", type=int, default=100)
-    p.add_argument("--rate", type=float, default=10)
-    p.add_argument("--concurrency", type=int, default=20)
-    p.add_argument("--seed", type=int, default=1)
-    p.add_argument("--portfolio", default="demo")
+    p.add_argument("--url", default=os.environ["TRADING_URL"])
+    p.add_argument("--requests", type=int, default=int(os.environ["SIMULATOR_REQUESTS"]))
+    p.add_argument("--rate", type=float, default=float(os.environ["SIMULATOR_RATE"]))
+    p.add_argument("--concurrency", type=int, default=int(os.environ["SIMULATOR_CONCURRENCY"]))
+    p.add_argument("--seed", type=int, default=int(os.environ["SIMULATOR_SEED"]))
+    p.add_argument("--portfolio", default=os.environ["SIMULATOR_PORTFOLIO"])
     p.add_argument("--start", default=tomorrow())
     p.add_argument("--duplicates", action="store_true")
     p.add_argument("--output")

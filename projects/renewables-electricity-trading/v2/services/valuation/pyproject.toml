@@ -2,7 +2,7 @@
 name = "renewables-valuation"
 version = "0.1.0"
 requires-python = ">=3.11,<3.12"
-dependencies = ["django>=5.2.8,<5.3", "djangorestframework>=3.16,<4", "psycopg[binary]>=3.2,<4", "boto3>=1.35,<2", "gunicorn>=23,<24", "prometheus-client>=0.21,<1", "httpx>=0.28,<1", "jsonschema>=4.23,<5"]
+dependencies = ["python-dotenv>=1,<2", "opentelemetry-sdk-extension-aws>=2,<3", "opentelemetry-api>=1.38,<2", "opentelemetry-sdk>=1.38,<2", "opentelemetry-exporter-otlp-proto-http>=1.38,<2", "django>=5.2.8,<5.3", "djangorestframework>=3.16,<4", "psycopg[binary]>=3.2,<4", "boto3>=1.35,<2", "gunicorn>=23,<24", "prometheus-client>=0.21,<1", "httpx>=0.28,<1", "jsonschema>=4.23,<5"]
 
 [dependency-groups]
 dev = ["pytest>=8,<9", "pytest-django>=4.9,<5", "pytest-asyncio>=0.25,<1", "ruff>=0.11,<1"]

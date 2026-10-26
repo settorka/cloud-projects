@@ -91,3 +91,43 @@ def test_source_records_api(client):
     assert response.json()["count"] == 1
     assert response.json()["results"][0]["payload"]["generation"] == 20000
     assert client.get("/v1/source-records?dataset=unknown").status_code == 400
+
+
+@pytest.mark.django_db
+def test_import_state_history_success(monkeypatch):
+    from app.elexon import import_live
+    from app.models import ProcessExecution
+
+    async def fetched(*args):
+        return {"wind": [{"startTime": "2026-10-25T00:00:00Z", "generation": 100}]}
+
+    monkeypatch.setattr("app.elexon.fetch_all", fetched)
+    end = timezone.now()
+    run = import_live(["wind"], end - timedelta(hours=1), end)
+    process = ProcessExecution.objects.get(identity=str(run.pk))
+    assert run.state == "SUCCEEDED" and run.records == 1
+    assert list(process.transitions.order_by("sequence").values_list("state", flat=True)) == [
+        "CREATED",
+        "FETCHING",
+        "FETCHED",
+        "PERSISTING",
+        "SUCCEEDED",
+    ]
+
+
+@pytest.mark.django_db
+def test_import_state_history_failure(monkeypatch):
+    from app.elexon import import_live
+    from app.models import ProcessExecution, ImportRun
+
+    async def failed(*args):
+        raise TimeoutError("private-source-details")
+
+    monkeypatch.setattr("app.elexon.fetch_all", failed)
+    end = timezone.now()
+    with pytest.raises(TimeoutError):
+        import_live(["wind"], end - timedelta(hours=1), end)
+    assert ImportRun.objects.get().state == "FAILED"
+    process = ProcessExecution.objects.get()
+    assert process.state == "FAILED" and process.error_code == "TimeoutError"
+    assert not SourceRecord.objects.exists()

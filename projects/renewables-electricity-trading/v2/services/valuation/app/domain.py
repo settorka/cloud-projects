@@ -1,3 +1,4 @@
+from .telemetry import span
 from decimal import Decimal, ROUND_HALF_EVEN
 from django.db import transaction
 from django.utils import timezone
@@ -100,6 +101,7 @@ def handle_event(event):
 
 
 @transaction.atomic
+@span("valuation.calculate")
 def calculate(portfolio):
     # Shared with input application, so one run observes a coherent local snapshot.
     ConsumerGuard.objects.select_for_update().get(name="events")
