@@ -3,7 +3,7 @@ on:
   pull_request:
     paths: ['projects/renewables-electricity-trading/**', '.github/workflows/renewables-v1.yml']
   push:
-    branches: [main, codex/renewables-v2-aws]
+    branches: [main]
     paths: ['projects/renewables-electricity-trading/**', '.github/workflows/renewables-v1.yml']
   workflow_dispatch:
 permissions:

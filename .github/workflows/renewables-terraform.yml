@@ -3,7 +3,7 @@ on:
   pull_request:
     paths: ['projects/renewables-electricity-trading/v2/deploy/**', '.github/workflows/renewables-terraform.yml']
   push:
-    branches: [main, codex/renewables-v2-aws]
+    branches: [main]
     paths: ['projects/renewables-electricity-trading/v2/deploy/**', '.github/workflows/renewables-terraform.yml']
   workflow_dispatch:
 permissions:
