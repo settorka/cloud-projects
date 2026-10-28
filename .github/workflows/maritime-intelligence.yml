@@ -1,9 +1,9 @@
 name: Maritime intelligence
 on:
   push:
-    paths: ["projects/maritime-intelligence/**", ".github/workflows/maritime-intelligence.yml"]
+    paths: ["projects/maritime-intelligence/**", ".github/workflows/maritime-intelligence.yml", ".github/workflows/maritime-aws.yml"]
   pull_request:
-    paths: ["projects/maritime-intelligence/**", ".github/workflows/maritime-intelligence.yml"]
+    paths: ["projects/maritime-intelligence/**", ".github/workflows/maritime-intelligence.yml", ".github/workflows/maritime-aws.yml"]
 
 permissions:
   contents: read

@@ -5,3 +5,6 @@ __pycache__
 .env
 .git
 dist
+deploy/v2/terraform/.terraform
+deploy/v2/terraform/*.tfvars*
+deploy/v2/terraform/*.tfplan

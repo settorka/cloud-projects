@@ -20,5 +20,7 @@ COPY tools ./tools
 COPY .env.example ./.env.example
 COPY .dockerignore ./.dockerignore
 COPY Dockerfile ./Dockerfile
+COPY deploy/v2/compose.yaml ./deploy/v2/compose.yaml
+COPY deploy/v2/otel-collector.yaml ./deploy/v2/otel-collector.yaml
 ENV PATH="/app/.venv/bin:$PATH"
 CMD ["pytest", "-q"]
