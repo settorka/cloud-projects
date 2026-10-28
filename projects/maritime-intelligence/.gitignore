@@ -1,2 +1,5 @@
 dist/
 *.log
+
+# Generated remote backend declaration, never credentials
+backend.auto.tf

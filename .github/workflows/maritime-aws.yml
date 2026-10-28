@@ -1,0 +1,96 @@
+name: Maritime AWS
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Plan only, or deploy the reviewed main-branch release
+        type: choice
+        options: [plan, deploy]
+        default: plan
+      budget_email:
+        description: Budget and operational alert address
+        required: true
+        type: string
+      confirmation:
+        description: Type DEPLOY for a deployment; leave empty for a plan
+        type: string
+        default: ""
+      approved_revision:
+        description: Full commit SHA reviewed in the plan run (required for deploy)
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: maritime-aws
+  cancel-in-progress: false
+
+jobs:
+  development:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: projects/maritime-intelligence
+    env:
+      AWS_REGION: eu-west-2
+      TF_IN_AUTOMATION: "true"
+      TF_VAR_budget_email: ${{ inputs.budget_email }}
+      TF_VAR_domain: ""
+      OPERATION: ${{ inputs.operation }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+      APPROVED_REVISION: ${{ inputs.approved_revision }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.17.0"
+          terraform_wrapper: false
+      - name: Check deployment intent
+        run: |
+          if [ "$OPERATION" = deploy ] && [ "$CONFIRMATION" != DEPLOY ]; then
+            echo 'A deployment requires confirmation=DEPLOY'; exit 1
+          fi
+          if [ "$OPERATION" = deploy ] && [ "$APPROVED_REVISION" != "$GITHUB_SHA" ]; then
+            echo 'Deploy only the full main-branch commit SHA reviewed in the plan run'; exit 1
+          fi
+          echo "Planning commit $GITHUB_SHA"
+      - run: pip install uv==0.13.5
+      - run: uv sync --frozen
+      - run: uv run ruff check src tests tools
+      - run: uv run pytest -q
+      - run: uv run python tools/package_release.py
+      - name: Assume existing GitHub developer role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEV_ROLE_ARN }}
+          aws-region: eu-west-2
+          role-session-name: maritime-development
+      - name: Use the bootstrap's encrypted, versioned and locked remote state
+        run: |
+          account=$(aws sts get-caller-identity --query Account --output text)
+          cp deploy/v2/terraform/backend.tf.example deploy/v2/terraform/backend.auto.tf
+          printf 'bucket = "maritime-intelligence-state-%s-%s"\nkey = "development.tfstate"\nregion = "%s"\nuse_lockfile = true\nencrypt = true\n' "$account" "$AWS_REGION" "$AWS_REGION" > dist/backend.hcl
+          terraform -chdir=deploy/v2/terraform init -input=false -backend-config=../../../dist/backend.hcl
+      - run: terraform -chdir=deploy/v2/terraform validate
+      - name: Build the exact deployment plan
+        run: terraform -chdir=deploy/v2/terraform plan -input=false -no-color -out=deployment.tfplan
+      - name: Reject destructive or unbudgeted changes
+        run: terraform -chdir=deploy/v2/terraform show -json deployment.tfplan | uv run python tools/check_plan.py
+      - name: Apply the saved plan
+        if: inputs.operation == 'deploy'
+        run: terraform -chdir=deploy/v2/terraform apply -input=false -no-color deployment.tfplan
+      - name: Roll out and verify real data, Lambda imports, backup and restore
+        if: inputs.operation == 'deploy'
+        run: uv run python tools/deploy.py deploy
+      - name: Access instructions
+        if: inputs.operation == 'deploy'
+        run: terraform -chdir=deploy/v2/terraform output ssm_tunnel_command

@@ -1,0 +1,19 @@
+#!/bin/bash
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+apt-get -o Acquire::Retries=3 update
+apt-get -o Acquire::Retries=3 install -y docker.io docker-compose-v2 awscli python3
+install -d /etc/docker
+printf '%s\n' '{"log-driver":"json-file","log-opts":{"max-size":"10m","max-file":"3"}}' > /etc/docker/daemon.json
+systemctl enable docker
+systemctl restart docker
+install -d -m 700 /opt/maritime
+cat > /opt/maritime/deployment.json <<'JSON'
+${jsonencode({bucket=bucket,region=region,domain=domain,bbox=bbox,tunnel_port=tunnel_port,project=project})}
+JSON
+bootstrap_dir=$(mktemp -d /tmp/maritime-bootstrap.XXXXXX)
+trap 'rm -rf "$bootstrap_dir"' EXIT
+aws s3 cp 's3://${bucket}/${artifact}' "$bootstrap_dir/release.tar.gz" --region '${region}' --only-show-errors
+printf '%s  %s\n' '${artifact_sha}' "$bootstrap_dir/release.tar.gz" | sha256sum -c - >/dev/null
+tar -xzf "$bootstrap_dir/release.tar.gz" -C "$bootstrap_dir" tools/rollout.sh
+bash "$bootstrap_dir/tools/rollout.sh" '${bucket}' '${artifact}' '${region}'
