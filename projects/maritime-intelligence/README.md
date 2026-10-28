@@ -154,5 +154,10 @@ The geospatial contract uses clearly synthetic geometry/identifiers and cleans u
 its records. Test observations sent to the shared Kafka topic may be quarantined
 by the live processor; do not run development contracts against an operational host.
 
-See [architecture](docs/architecture.md), [AWS deployment](deploy/v2/README.md),
-[OpenTelemetry → CloudWatch](docs/telemetry.md), and [operations and limits](docs/operations.md).
+Data: [Fintraffic Digitraffic](https://www.digitraffic.fi/en/marine-traffic/), CC BY 4.0.
+Adapted outputs include source attribution. See [architecture](docs/architecture.md)
+and [operations](docs/operations.md).
+
+## OpenTelemetry
+
+The application sends traces, metrics and logs to the Compose OpenTelemetry Collector. Root traces use 1% sampling. The local collector prints signals for inspection; the AWS collector configuration exports to CloudWatch and X-Ray. See [telemetry](docs/telemetry.md) for signal names, privacy rules and verification. AWS provisioning follows in v2.
