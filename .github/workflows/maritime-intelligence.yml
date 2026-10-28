@@ -1,0 +1,38 @@
+name: Maritime intelligence
+on:
+  push:
+    paths: ["projects/maritime-intelligence/**", ".github/workflows/maritime-intelligence.yml"]
+  pull_request:
+    paths: ["projects/maritime-intelligence/**", ".github/workflows/maritime-intelligence.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  local-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: projects/maritime-intelligence
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install uv==0.13.5
+      - run: uv sync --frozen
+      - run: uv run ruff check src tests tools
+      - run: uv run pytest -q
+      - name: Start real dependencies without contacting AIS sources
+        run: |
+          cp .env.example .env
+          docker compose --env-file .env -f deploy/v1/compose.yaml up -d --build postgres objects kafka-init migrate
+      - name: Real dependency contracts
+        run: docker compose --env-file .env -f deploy/v1/compose.yaml -f deploy/v1/compose.test.yaml --profile test run --build --rm tests
+      - name: Logs
+        if: failure()
+        run: docker compose --env-file .env -f deploy/v1/compose.yaml logs --tail 100
+      - name: Cleanup
+        if: always()
+        run: docker compose --env-file .env -f deploy/v1/compose.yaml down -v
