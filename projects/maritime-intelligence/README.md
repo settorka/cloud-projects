@@ -80,3 +80,7 @@ non-position tables are deferred. No AWS resources are created by this version.
 Data: [Fintraffic Digitraffic](https://www.digitraffic.fi/en/marine-traffic/), CC BY 4.0.
 Adapted outputs include source attribution. See [architecture](docs/architecture.md)
 and [operations](docs/operations.md).
+
+## OpenTelemetry
+
+The application sends traces, metrics and logs to the Compose OpenTelemetry Collector. Root traces use 1% sampling. The local collector prints signals for inspection; the AWS collector configuration exports to CloudWatch and X-Ray. See [telemetry](docs/telemetry.md) for signal names, privacy rules and verification. AWS provisioning follows in v2.

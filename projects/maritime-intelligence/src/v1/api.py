@@ -1,6 +1,8 @@
 import base64
 import json
+import logging
 import secrets
+import time
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
@@ -8,13 +10,62 @@ import psycopg
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from opentelemetry import metrics, trace
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from v1.models import freshness
 from v1.services import ATTRIBUTION
+from v1.telemetry import operation
 
 
-def create_app(repository, settings):
+def create_app(repository, settings, telemetry=None):
     app = FastAPI(title="Maritime intelligence", version="0.1.0")
+    tracer = telemetry.traces.get_tracer("maritime") if telemetry else trace.get_tracer("maritime")
+    meter = telemetry.meter.get_meter("maritime") if telemetry else metrics.get_meter("maritime")
+    requests = meter.create_counter("maritime.http.requests")
+    errors = meter.create_counter("maritime.http.errors")
+    duration = meter.create_histogram("maritime.http.duration", unit="s")
+
+    @app.middleware("http")
+    async def observe(request, call_next):
+        if request.url.path == "/health/live":
+            return await call_next(request)
+        method = (
+            request.method
+            if request.method in {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
+            else "OTHER"
+        )
+        parent = TraceContextTextMapPropagator().extract(request.headers)
+        with operation(
+            "HTTP request",
+            tracer=tracer,
+            context=parent,
+            kind=trace.SpanKind.SERVER,
+            record_exception=False,
+        ) as span:
+            started = time.perf_counter()
+            status = 500
+            try:
+                response = await call_next(request)
+                status = response.status_code
+                return response
+            finally:
+                route = getattr(request.scope.get("route"), "path", "unmatched")
+                span.update_name(method + " " + route)
+                span.set_attributes(
+                    {
+                        "http.request.method": method,
+                        "http.route": route,
+                        "http.response.status_code": status,
+                    }
+                )
+                if status >= 500:
+                    errors.add(1)
+                    span.set_status(trace.Status(trace.StatusCode.ERROR))
+                requests.add(1)
+                duration.record(time.perf_counter() - started)
+                logging.getLogger("maritime.api").info("%s %s status=%s", method, route, status)
+
     bearer = HTTPBearer(auto_error=False)
 
     def authenticate(credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)]):
