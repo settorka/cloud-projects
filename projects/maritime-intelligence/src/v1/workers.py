@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 import paho.mqtt.client as mqtt
 from confluent_kafka import Consumer, KafkaException
+from opentelemetry import metrics, propagate, trace
 
 from v1.adapters.digitraffic import normalize
 from v1.adapters.kafka import KafkaPublisher
@@ -13,6 +14,7 @@ from v1.adapters.postgres import PostgresRepository
 from v1.adapters.references import fetch_port_calls
 from v1.adapters.s3 import S3ObjectStore
 from v1.services import store_reference
+from v1.telemetry import operation
 
 log = logging.getLogger(__name__)
 
@@ -112,22 +114,50 @@ def process(settings):
 
 
 def process_message(repo, consumer, message, settings):
+    meter = metrics.get_meter("maritime")
+    accepted = meter.create_counter("maritime.positions.processed")
+    quarantined = meter.create_counter("maritime.positions.quarantined")
+    delay = meter.create_histogram("maritime.processing.delay", unit="s")
     try:
         envelope = json.loads(message.value())
-        observation, raw = normalize(
-            envelope["topic"],
-            envelope["payload"].encode(),
-            datetime.fromisoformat(envelope["received_at"]),
-        )
-    except (ValueError, KeyError, TypeError, OverflowError, OSError) as exc:
-        repo.quarantine(message, type(exc).__name__ + ": " + str(exc))
-        log.warning("observation_quarantined offset=%s", message.offset())
-    else:
-        if inside_bbox(observation, settings.bbox) and observation.event_time >= datetime.now(
-            UTC
-        ) - timedelta(days=settings.position_retention_days):
-            repo.save(observation, raw)
-    consumer.commit(message=message, asynchronous=False)
+        if not isinstance(envelope, dict):
+            raise ValueError("Envelope must be an object")
+        carrier = envelope.get("trace_context", {})
+        if not isinstance(carrier, dict):
+            raise ValueError("Trace context must be an object")
+    except (ValueError, TypeError) as exc:
+        repo.quarantine(message, type(exc).__name__)
+        quarantined.add(1)
+        consumer.commit(message=message, asynchronous=False)
+        return
+    with operation(
+        "kafka.process",
+        context=propagate.extract(carrier),
+        kind=trace.SpanKind.CONSUMER,
+        record_exception=False,
+        attributes={
+            "messaging.system": "kafka",
+            "messaging.destination.name": settings.kafka_topic,
+        },
+    ):
+        try:
+            observation, raw = normalize(
+                envelope["topic"],
+                envelope["payload"].encode(),
+                datetime.fromisoformat(envelope["received_at"]),
+            )
+        except (ValueError, KeyError, TypeError, OverflowError, OSError) as exc:
+            repo.quarantine(message, type(exc).__name__ + ": " + str(exc))
+            quarantined.add(1)
+            log.warning("observation_quarantined offset=%s", message.offset())
+        else:
+            if inside_bbox(observation, settings.bbox) and observation.event_time >= datetime.now(
+                UTC
+            ) - timedelta(days=settings.position_retention_days):
+                repo.save(observation, raw)
+                accepted.add(1)
+                delay.record(max(0, (datetime.now(UTC) - observation.received_at).total_seconds()))
+        consumer.commit(message=message, asynchronous=False)
 
 
 def object_store(settings):

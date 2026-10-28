@@ -5,6 +5,7 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
+from v1.telemetry import traced
 from v1.visits import VisitState, advance
 
 PROJECTION = """mmsi,event_time,event_id,source,received_at,
@@ -24,6 +25,7 @@ class PostgresRepository:
             options=f"-c statement_timeout={self.settings.db_statement_timeout_ms}",
         )
 
+    @traced("postgres.save")
     def save(self, observation, raw):
         o = observation
         args = (
@@ -118,12 +120,14 @@ class PostgresRepository:
                     ),
                 )
 
+    @traced("postgres.latest")
     def latest(self, mmsi):
         with self.connect() as conn:
             return conn.execute(
                 f"SELECT {PROJECTION} FROM latest_positions WHERE mmsi=%s", (mmsi,)
             ).fetchone()
 
+    @traced("postgres.history")
     def history(self, mmsi, start, end, limit, cursor=None):
         after = " AND (event_time,event_id)<(%s,%s)" if cursor else ""
         args = (mmsi, start, end, *(cursor or ()), limit)
@@ -135,6 +139,7 @@ class PostgresRepository:
                 args,
             ).fetchall()
 
+    @traced("postgres.visits")
     def visits(self, port_id, limit):
         with self.connect() as conn:
             return conn.execute(
@@ -160,6 +165,7 @@ class PostgresRepository:
                 ),
             )
 
+    @traced("postgres.import_reference")
     def import_reference(self, key, body):
         payload = json.loads(body)
         calls = payload["data"]["portCalls"]

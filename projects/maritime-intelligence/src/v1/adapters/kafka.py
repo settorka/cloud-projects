@@ -1,6 +1,9 @@
 import json
 
 from confluent_kafka import KafkaException, Producer
+from opentelemetry import trace
+
+from v1.telemetry import operation, publish_context
 
 
 class KafkaPublisher:
@@ -18,12 +21,19 @@ class KafkaPublisher:
         )
 
     def publish(self, key, event):
-        errors = []
-        self.producer.produce(
-            self.topic,
-            key=key.encode(),
-            value=json.dumps(event).encode(),
-            on_delivery=lambda error, message: errors.append(error) if error else None,
-        )
-        if self.producer.flush(self.flush_timeout) or errors:
-            raise KafkaException(errors[0] if errors else "Kafka delivery timed out")
+        with operation(
+            "kafka.publish",
+            kind=trace.SpanKind.PRODUCER,
+            record_exception=False,
+            attributes={"messaging.system": "kafka", "messaging.destination.name": self.topic},
+        ):
+            event = {**event, "trace_context": publish_context()}
+            errors = []
+            self.producer.produce(
+                self.topic,
+                key=key.encode(),
+                value=json.dumps(event).encode(),
+                on_delivery=lambda error, message: errors.append(error) if error else None,
+            )
+            if self.producer.flush(self.flush_timeout) or errors:
+                raise KafkaException(errors[0] if errors else "Kafka delivery timed out")
