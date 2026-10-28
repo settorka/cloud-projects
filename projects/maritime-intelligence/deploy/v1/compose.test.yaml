@@ -1,0 +1,16 @@
+services:
+  tests:
+    build:
+      context: ../..
+      target: test
+    env_file: ../../.env
+    environment:
+      INTEGRATION: "1"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      objects:
+        condition: service_started
+    profiles: [test]
