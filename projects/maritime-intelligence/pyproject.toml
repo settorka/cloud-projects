@@ -12,13 +12,14 @@ dependencies = [
 
 [dependency-groups]
 dev = ["pytest>=8,<10", "httpx>=0.28,<1", "ruff>=0.11,<1"]
+deploy = ["botocore[crt]>=1.35,<2"]
 
 [build-system]
 requires = ["hatchling>=1.27,<2"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/v1"]
+packages = ["src/v1", "src/v2"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
