@@ -26,6 +26,14 @@ jobs:
       - run: uv run --frozen ruff format --check src tests
       - run: uv run --frozen pytest -q
       - run: uv build
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.17.0'
+      - run: terraform fmt -check -recursive infrastructure
+      - run: terraform -chdir=infrastructure/bootstrap init -backend=false -input=false -lockfile=readonly
+      - run: terraform -chdir=infrastructure/bootstrap validate
+      - run: terraform -chdir=infrastructure/dev init -backend=false -input=false -lockfile=readonly
+      - run: terraform -chdir=infrastructure/dev validate
       - name: Build container and process offline fixture through it
         run: |
           docker build --platform linux/amd64 -t elexon-etl:ci .
