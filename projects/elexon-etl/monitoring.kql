@@ -1,0 +1,11 @@
+// Run in the project's Log Analytics workspace. Edit the time range in the portal.
+ContainerAppConsoleLogs_CL
+| extend event=parse_json(Log_s)
+| where tostring(event.application) == "elexon-etl"
+| where tostring(event.event) in ("partition_succeeded", "partition_failed", "partition_skipped", "coverage_warning")
+| project TimeGenerated, event=tostring(event.event), dataset=tostring(event.dataset),
+          source_date=tostring(event.source_file_date), run_id=tostring(event.run_id),
+          rows=tolong(event.output_rows), raw_bytes=tolong(event.raw_bytes),
+          wall_seconds=todouble(event.wall_seconds), unmapped_units=tolong(event.unmapped_bm_unit_rows),
+          missing_slots=event.missing_filename_slots, error=tostring(event.error_type)
+| order by TimeGenerated desc
