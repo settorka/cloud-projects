@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<DTS:Executable xmlns:DTS="www.microsoft.com/SqlServer/Dts"
+  DTS:refId="Package"
+  DTS:CreationDate="11/1/2026 4:06:44 PM"
+  DTS:CreationName="Microsoft.Package"
+  DTS:CreatorComputerName="fxdev"
+  DTS:CreatorName="NT AUTHORITY\SYSTEM"
+  DTS:Description="Load validated Settlements through warehouse stored procedures with explicit source provenance."
+  DTS:DTSID="{BF6560CA-C9DF-4A59-8691-3E2FB456C66C}"
+  DTS:ExecutableType="Microsoft.Package"
+  DTS:LastModifiedProductVersion="16.0.4255.1"
+  DTS:LocaleID="1033"
+  DTS:ObjectName="LoadSettlements"
+  DTS:ProtectionLevel="0"
+  DTS:VersionGUID="{DD7AA17C-2EF1-4103-A501-9707746ABF04}">
+  <DTS:Property
+    DTS:Name="PackageFormatVersion">8</DTS:Property>
+  <DTS:ConnectionManagers>
+    <DTS:ConnectionManager
+      DTS:refId="Package.ConnectionManagers[FxWarehouse]"
+      DTS:CreationName="OLEDB"
+      DTS:DTSID="{5DCE3C1D-BE60-4605-8564-56B56C1DDEAF}"
+      DTS:ObjectName="FxWarehouse">
+      <DTS:ObjectData>
+        <DTS:ConnectionManager
+          DTS:ConnectRetryCount="1"
+          DTS:ConnectRetryInterval="5"
+          DTS:ConnectionString="Data Source=localhost;Initial Catalog=FxWarehouse;Provider=MSOLEDBSQL;Integrated Security=SSPI;Trust Server Certificate=True;" />
+      </DTS:ObjectData>
+    </DTS:ConnectionManager>
+    <DTS:ConnectionManager
+      DTS:refId="Package.ConnectionManagers[SettlementsBatchSql]"
+      DTS:CreationName="FILE"
+      DTS:DTSID="{43E3260B-67C9-433D-8967-9FAF73877BC2}"
+      DTS:ObjectName="SettlementsBatchSql">
+      <DTS:ObjectData>
+        <DTS:ConnectionManager
+          DTS:ConnectionString="F:\fx\data\current-settlement-load.sql" />
+      </DTS:ObjectData>
+    </DTS:ConnectionManager>
+  </DTS:ConnectionManagers>
+  <DTS:Variables />
+  <DTS:Executables>
+    <DTS:Executable
+      DTS:refId="Package\Validate and publish Settlements"
+      DTS:CreationName="Microsoft.ExecuteSQLTask"
+      DTS:DTSID="{736115F1-EE93-41AC-9625-7E8BB3DF249F}"
+      DTS:ExecutableType="Microsoft.ExecuteSQLTask"
+      DTS:LocaleID="-1"
+      DTS:ObjectName="Validate and publish Settlements"
+      DTS:TaskContact="Execute SQL Task; Microsoft Corporation; SQL Server 2022; © 2022 Microsoft Corporation; All Rights Reserved;http://www.microsoft.com/sql/support/default.asp;1"
+      DTS:ThreadHint="0">
+      <DTS:Variables />
+      <DTS:ObjectData>
+        <SQLTask:SqlTaskData
+          SQLTask:Connection="{5DCE3C1D-BE60-4605-8564-56B56C1DDEAF}"
+          SQLTask:TimeOut="120"
+          SQLTask:SqlStmtSourceType="FileConnection"
+          SQLTask:SqlStatementSource="{43E3260B-67C9-433D-8967-9FAF73877BC2}" xmlns:SQLTask="www.microsoft.com/sqlserver/dts/tasks/sqltask" />
+      </DTS:ObjectData>
+    </DTS:Executable>
+  </DTS:Executables>
+</DTS:Executable>

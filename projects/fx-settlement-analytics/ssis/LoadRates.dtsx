@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<DTS:Executable xmlns:DTS="www.microsoft.com/SqlServer/Dts"
+  DTS:refId="Package"
+  DTS:CreationDate="11/1/2026 4:09:13 PM"
+  DTS:CreationName="Microsoft.Package"
+  DTS:CreatorComputerName="fxdev"
+  DTS:CreatorName="NT AUTHORITY\SYSTEM"
+  DTS:Description="Load validated Rates through warehouse stored procedures with explicit source provenance."
+  DTS:DTSID="{D08D6C46-2932-4CC4-A71C-07C7B6B4DAC4}"
+  DTS:ExecutableType="Microsoft.Package"
+  DTS:LastModifiedProductVersion="16.0.4255.1"
+  DTS:LocaleID="1033"
+  DTS:ObjectName="LoadRates"
+  DTS:ProtectionLevel="0"
+  DTS:VersionGUID="{14A174B4-8A95-4405-BF1C-225CEA36130A}">
+  <DTS:Property
+    DTS:Name="PackageFormatVersion">8</DTS:Property>
+  <DTS:ConnectionManagers>
+    <DTS:ConnectionManager
+      DTS:refId="Package.ConnectionManagers[FxWarehouse]"
+      DTS:CreationName="OLEDB"
+      DTS:DTSID="{E2C64E0A-F71C-4DE3-BD8D-47F06D1FD324}"
+      DTS:ObjectName="FxWarehouse">
+      <DTS:ObjectData>
+        <DTS:ConnectionManager
+          DTS:ConnectRetryCount="1"
+          DTS:ConnectRetryInterval="5"
+          DTS:ConnectionString="Data Source=localhost;Initial Catalog=FxWarehouse;Provider=MSOLEDBSQL;Integrated Security=SSPI;Trust Server Certificate=True;" />
+      </DTS:ObjectData>
+    </DTS:ConnectionManager>
+    <DTS:ConnectionManager
+      DTS:refId="Package.ConnectionManagers[RatesBatchSql]"
+      DTS:CreationName="FILE"
+      DTS:DTSID="{27C8DB78-7345-4C1F-A267-D7BDDE7C6674}"
+      DTS:ObjectName="RatesBatchSql">
+      <DTS:ObjectData>
+        <DTS:ConnectionManager
+          DTS:ConnectionString="F:\fx\data\current-rate-load.sql" />
+      </DTS:ObjectData>
+    </DTS:ConnectionManager>
+  </DTS:ConnectionManagers>
+  <DTS:Variables />
+  <DTS:Executables>
+    <DTS:Executable
+      DTS:refId="Package\Validate and publish Rates"
+      DTS:CreationName="Microsoft.ExecuteSQLTask"
+      DTS:DTSID="{FABF3FF8-D616-4F9B-BC6D-AE58237A324D}"
+      DTS:ExecutableType="Microsoft.ExecuteSQLTask"
+      DTS:LocaleID="-1"
+      DTS:ObjectName="Validate and publish Rates"
+      DTS:TaskContact="Execute SQL Task; Microsoft Corporation; SQL Server 2022; © 2022 Microsoft Corporation; All Rights Reserved;http://www.microsoft.com/sql/support/default.asp;1"
+      DTS:ThreadHint="0">
+      <DTS:Variables />
+      <DTS:ObjectData>
+        <SQLTask:SqlTaskData
+          SQLTask:Connection="{E2C64E0A-F71C-4DE3-BD8D-47F06D1FD324}"
+          SQLTask:TimeOut="120"
+          SQLTask:SqlStmtSourceType="FileConnection"
+          SQLTask:SqlStatementSource="{27C8DB78-7345-4C1F-A267-D7BDDE7C6674}" xmlns:SQLTask="www.microsoft.com/sqlserver/dts/tasks/sqltask" />
+      </DTS:ObjectData>
+    </DTS:Executable>
+  </DTS:Executables>
+</DTS:Executable>
