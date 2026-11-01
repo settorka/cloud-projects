@@ -22,8 +22,8 @@ jobs:
           python-version: '3.13'
       - run: python -m pip install uv==0.13.5
       - run: uv sync --frozen
-      - run: uv run --frozen ruff check src tests
-      - run: uv run --frozen ruff format --check src tests
+      - run: uv run --frozen ruff check src tests dags
+      - run: uv run --frozen ruff format --check src tests dags
       - run: uv run --frozen pytest -q
       - run: uv build
       - uses: hashicorp/setup-terraform@v3
@@ -39,3 +39,22 @@ jobs:
           docker build --platform linux/amd64 -t elexon-etl:ci .
           docker run --rm --platform linux/amd64 --entrypoint python \
             -v "$PWD/tests:/fixtures:ro" elexon-etl:ci /fixtures/container_smoke.py
+  airflow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: projects/elexon-etl
+    env:
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
+      AIRFLOW_HOME: ${{ github.workspace }}/projects/elexon-etl/data/airflow-ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install uv==0.13.5
+      - run: uv sync --frozen --extra airflow
+      - run: uv run --frozen --extra airflow pytest -q
+      - name: Run real Airflow DagRuns against offline fixtures
+        run: uv run --frozen --extra airflow python tests/airflow_smoke.py

@@ -1,7 +1,13 @@
 # Elexon ETL
 
-One Python pipeline, one Azure Container Apps Job, Blob Storage and local DuckDB.
+One Python pipeline, a standalone CLI and optional Airflow DAGs, Blob Storage and
+local DuckDB. The original Azure acceptance used a Container Apps Job.
 This is an independent project; existing repo applications are unchanged.
+
+Airflow scheduling, partition retries, backfills, queries and cleanup are described
+in [airflow.md](airflow.md). Both entry points call the same Python workflow bodies;
+the CLI remains usable without Airflow. The Terraform configuration below deploys
+the original CLI job, not an Airflow scheduler. No new cloud deployment is implied.
 
 **Cloud retirement:** the acceptance deployment was torn down at the user's
 request. The local pipeline and measured evidence remain available. See

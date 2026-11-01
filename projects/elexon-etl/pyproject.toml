@@ -30,7 +30,7 @@ build-backend = "hatchling.build"
 packages = ["src/elexon_etl"]
 
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/tests", "/sql", "/dags", "/pyproject.toml", "/README.md", "/uv.lock"]
+include = ["/src", "/tests", "/sql", "/dags", "/airflow.md", "/pyproject.toml", "/README.md", "/uv.lock"]
 exclude = ["**/__pycache__/**", "**/*.pyc"]
 
 [tool.pytest.ini_options]
