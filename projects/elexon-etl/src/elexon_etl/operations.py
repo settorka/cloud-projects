@@ -1,4 +1,4 @@
-"""Bounded, serial operations; no scheduler, queue or metadata database."""
+"""Storage operations shared by direct execution and Airflow tasks."""
 
 from datetime import datetime, timedelta, timezone
 
