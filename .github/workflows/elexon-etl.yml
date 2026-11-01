@@ -1,0 +1,33 @@
+name: Elexon ETL checks
+on:
+  pull_request:
+    paths: ['projects/elexon-etl/**', '.github/workflows/elexon-etl.yml']
+  push:
+    branches: [main]
+    paths: ['projects/elexon-etl/**', '.github/workflows/elexon-etl.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: projects/elexon-etl
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install uv==0.13.5
+      - run: uv sync --frozen
+      - run: uv run --frozen ruff check src tests
+      - run: uv run --frozen ruff format --check src tests
+      - run: uv run --frozen pytest -q
+      - run: uv build
+      - name: Build container and process offline fixture through it
+        run: |
+          docker build --platform linux/amd64 -t elexon-etl:ci .
+          docker run --rm --platform linux/amd64 --entrypoint python \
+            -v "$PWD/tests:/fixtures:ro" elexon-etl:ci /fixtures/container_smoke.py
