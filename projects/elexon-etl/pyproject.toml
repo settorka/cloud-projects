@@ -1,0 +1,39 @@
+[project]
+name = "elexon-etl"
+version = "0.1.0"
+description = "Bounded Elexon archive ingestion into traceable Parquet partitions"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "httpx>=0.28,<1",
+  "pyarrow>=19,<24",
+  "duckdb>=1.2,<2",
+  "azure-identity>=1.20,<2",
+  "azure-storage-blob>=12.24,<13",
+]
+
+[project.scripts]
+elexon-etl = "elexon_etl.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "ruff>=0.11,<1"]
+
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/elexon_etl"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/tests", "/sql", "/pyproject.toml", "/README.md", "/uv.lock"]
+exclude = ["**/__pycache__/**", "**/*.pyc"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

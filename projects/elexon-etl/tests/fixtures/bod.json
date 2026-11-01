@@ -1,0 +1,3 @@
+[
+  {"dataset":"BOD","settlementDate":"2025-01-01","settlementPeriod":3,"timeFrom":"2025-01-01T01:00:00.000Z","timeTo":"2025-01-01T01:30:00.000Z","levelFrom":-16,"levelTo":-16,"pairId":-1,"offer":151.5,"bid":73.0,"nationalGridBmUnit":"DEMO-1","bmUnit":"T_DEMO"}
+]

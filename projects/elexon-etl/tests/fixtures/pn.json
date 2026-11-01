@@ -1,0 +1,4 @@
+[
+  {"dataset":"PN","settlementDate":"2025-01-01","settlementPeriod":3,"timeFrom":"2025-01-01T01:00:00.000Z","timeTo":"2025-01-01T01:30:00.000Z","levelFrom":10,"levelTo":12,"nationalGridBmUnit":"DEMO-1","bmUnit":"T_DEMO"},
+  {"dataset":"PN","settlementDate":"2025-01-01","settlementPeriod":4,"timeFrom":"2025-01-01T01:30:00.000Z","timeTo":"2025-01-01T02:00:00.000Z","levelFrom":12,"levelTo":12,"nationalGridBmUnit":"DEMO-1","bmUnit":"T_DEMO"}
+]
