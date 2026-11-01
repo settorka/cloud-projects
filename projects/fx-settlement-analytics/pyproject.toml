@@ -1,0 +1,12 @@
+[project]
+name = "fx-settlement-analytics"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["certifi>=2025.1.31", "azure-identity>=1.20,<2", "azure-storage-blob>=12.24,<13", "streamlit>=1.50,<2; sys_platform == 'win32'", "pythonnet>=3.0.5,<4; sys_platform == 'win32'"]
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "ruff>=0.11,<1"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

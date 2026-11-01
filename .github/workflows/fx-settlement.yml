@@ -1,0 +1,24 @@
+name: FX settlement checks
+on:
+  pull_request:
+    paths: ['projects/fx-settlement-analytics/**', '.github/workflows/fx-settlement.yml']
+  push:
+    branches: [main, 'codex/fx-*']
+    paths: ['projects/fx-settlement-analytics/**', '.github/workflows/fx-settlement.yml']
+permissions:
+  contents: read
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: projects/fx-settlement-analytics
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.13.5'
+      - run: uv sync --frozen --group dev --python 3.12
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest -q
