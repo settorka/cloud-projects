@@ -1,0 +1,535 @@
+{
+  "name": "FxSettlement",
+  "compatibilityLevel": 1500,
+  "model": {
+    "culture": "en-GB",
+    "dataSources": [
+      {
+        "name": "FxWarehouse",
+        "type": "provider",
+        "connectionString": "Provider=MSOLEDBSQL;Data Source=localhost;Initial Catalog=FxWarehouse;Integrated Security=SSPI;Trust Server Certificate=True;",
+        "impersonationMode": "impersonateServiceAccount"
+      }
+    ],
+    "tables": [
+      {
+        "name": "Batch",
+        "columns": [
+          {
+            "name": "BatchId",
+            "dataType": "string",
+            "sourceColumn": "BatchId"
+          },
+          {
+            "name": "SimulationAsOf",
+            "dataType": "dateTime",
+            "sourceColumn": "SimulationAsOf"
+          },
+          {
+            "name": "ReconciledAsOf",
+            "dataType": "dateTime",
+            "sourceColumn": "ReconciledAsOf"
+          },
+          {
+            "name": "Seed",
+            "dataType": "int64",
+            "sourceColumn": "Seed"
+          },
+          {
+            "name": "TradeCount",
+            "dataType": "int64",
+            "sourceColumn": "TradeCount"
+          },
+          {
+            "name": "IsSynthetic",
+            "dataType": "boolean",
+            "sourceColumn": "IsSynthetic"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Batch",
+            "mode": "import",
+            "source": {
+              "type": "query",
+              "dataSource": "FxWarehouse",
+              "query": "SELECT [BatchId],[SimulationAsOf],[ReconciledAsOf],[Seed],[TradeCount],[IsSynthetic] FROM analytics.[Batch]"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Currency",
+        "columns": [
+          {
+            "name": "Currency",
+            "dataType": "string",
+            "sourceColumn": "Currency"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Currency",
+            "mode": "import",
+            "source": {
+              "type": "query",
+              "dataSource": "FxWarehouse",
+              "query": "SELECT [Currency] FROM analytics.[Currency]"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Direction",
+        "columns": [
+          {
+            "name": "Direction",
+            "dataType": "string",
+            "sourceColumn": "Direction"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Direction",
+            "mode": "import",
+            "source": {
+              "type": "query",
+              "dataSource": "FxWarehouse",
+              "query": "SELECT [Direction] FROM analytics.[Direction]"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Counterparty",
+        "columns": [
+          {
+            "name": "Counterparty",
+            "dataType": "string",
+            "sourceColumn": "Counterparty"
+          },
+          {
+            "name": "DisplayName",
+            "dataType": "string",
+            "sourceColumn": "DisplayName"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Counterparty",
+            "mode": "import",
+            "source": {
+              "type": "query",
+              "dataSource": "FxWarehouse",
+              "query": "SELECT [Counterparty],[DisplayName] FROM analytics.[Counterparty]"
+            }
+          }
+        ]
+      },
+      {
+        "name": "CurrencyPair",
+        "columns": [
+          {
+            "name": "Pair",
+            "dataType": "string",
+            "sourceColumn": "Pair"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "CurrencyPair",
+            "mode": "import",
+            "source": {
+              "type": "query",
+              "dataSource": "FxWarehouse",
+              "query": "SELECT [Pair] FROM analytics.[CurrencyPair]"
+            }
+          }
+        ]
+      },
+      {
+        "name": "SettlementDate",
+        "columns": [
+          {
+            "name": "Date",
+            "dataType": "dateTime",
+            "sourceColumn": "Date"
+          },
+          {
+            "name": "Year",
+            "dataType": "int64",
+            "sourceColumn": "Year"
+          },
+          {
+            "name": "Month",
+            "dataType": "int64",
+            "sourceColumn": "Month"
+          },
+          {
+            "name": "Day",
+            "dataType": "int64",
+            "sourceColumn": "Day"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "SettlementDate",
+            "mode": "import",
+            "source": {
+              "type": "query",
+              "dataSource": "FxWarehouse",
+              "query": "SELECT [Date],[Year],[Month],[Day] FROM analytics.[SettlementDate]"
+            }
+          }
+        ]
+      },
+      {
+        "name": "SettlementLeg",
+        "columns": [
+          {
+            "name": "BatchId",
+            "dataType": "string",
+            "sourceColumn": "BatchId"
+          },
+          {
+            "name": "LegId",
+            "dataType": "string",
+            "sourceColumn": "LegId"
+          },
+          {
+            "name": "TradeId",
+            "dataType": "string",
+            "sourceColumn": "TradeId"
+          },
+          {
+            "name": "Counterparty",
+            "dataType": "string",
+            "sourceColumn": "Counterparty"
+          },
+          {
+            "name": "Pair",
+            "dataType": "string",
+            "sourceColumn": "Pair"
+          },
+          {
+            "name": "Currency",
+            "dataType": "string",
+            "sourceColumn": "Currency"
+          },
+          {
+            "name": "Direction",
+            "dataType": "string",
+            "sourceColumn": "Direction"
+          },
+          {
+            "name": "DueDate",
+            "dataType": "dateTime",
+            "sourceColumn": "DueDate"
+          },
+          {
+            "name": "ExpectedAmount",
+            "dataType": "decimal",
+            "sourceColumn": "ExpectedAmount",
+            "formatString": "#,0.00"
+          },
+          {
+            "name": "AllocatedAmount",
+            "dataType": "decimal",
+            "sourceColumn": "AllocatedAmount",
+            "formatString": "#,0.00"
+          },
+          {
+            "name": "OutstandingAmount",
+            "dataType": "decimal",
+            "sourceColumn": "OutstandingAmount",
+            "formatString": "#,0.00"
+          },
+          {
+            "name": "IsLate",
+            "dataType": "int64",
+            "sourceColumn": "IsLate"
+          },
+          {
+            "name": "IsOverdue",
+            "dataType": "int64",
+            "sourceColumn": "IsOverdue"
+          },
+          {
+            "name": "SettlementStatus",
+            "dataType": "string",
+            "sourceColumn": "SettlementStatus"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "SettlementLeg",
+            "mode": "import",
+            "source": {
+              "type": "query",
+              "dataSource": "FxWarehouse",
+              "query": "SELECT [BatchId],[LegId],[TradeId],[Counterparty],[Pair],[Currency],[Direction],[DueDate],[ExpectedAmount],[AllocatedAmount],[OutstandingAmount],[IsLate],[IsOverdue],[SettlementStatus] FROM analytics.[SettlementLeg]"
+            }
+          }
+        ],
+        "measures": [
+          {
+            "name": "Expected Legs",
+            "expression": "IF(HASONEVALUE('Batch'[BatchId]), COALESCE(COUNTROWS('SettlementLeg'),0), BLANK())",
+            "formatString": "#,0"
+          },
+          {
+            "name": "Settled Legs",
+            "expression": "IF(HASONEVALUE('Batch'[BatchId]), COALESCE(CALCULATE(COUNTROWS('SettlementLeg'),'SettlementLeg'[SettlementStatus]=\"settled\"),0), BLANK())",
+            "formatString": "#,0"
+          },
+          {
+            "name": "Outstanding Legs",
+            "expression": "IF(HASONEVALUE('Batch'[BatchId]), COALESCE(CALCULATE(COUNTROWS('SettlementLeg'),'SettlementLeg'[OutstandingAmount]>0),0), BLANK())",
+            "formatString": "#,0"
+          },
+          {
+            "name": "Overdue Legs",
+            "expression": "IF(HASONEVALUE('Batch'[BatchId]), COALESCE(CALCULATE(COUNTROWS('SettlementLeg'),'SettlementLeg'[IsOverdue]=1),0), BLANK())",
+            "formatString": "#,0"
+          },
+          {
+            "name": "Late Legs",
+            "expression": "IF(HASONEVALUE('Batch'[BatchId]), COALESCE(CALCULATE(COUNTROWS('SettlementLeg'),'SettlementLeg'[IsLate]=1),0), BLANK())",
+            "formatString": "#,0"
+          },
+          {
+            "name": "Trades",
+            "expression": "IF(HASONEVALUE('Batch'[BatchId]), COALESCE(DISTINCTCOUNT('SettlementLeg'[TradeId]),0), BLANK())",
+            "formatString": "#,0"
+          },
+          {
+            "name": "Leg Settlement Rate",
+            "expression": "DIVIDE([Settled Legs],[Expected Legs])",
+            "formatString": "0.00%"
+          },
+          {
+            "name": "Gross Expected",
+            "expression": "IF(HASONEVALUE('Batch'[BatchId]) && HASONEVALUE('Currency'[Currency]), COALESCE(SUM('SettlementLeg'[ExpectedAmount]),0), BLANK())",
+            "formatString": "#,0.00"
+          },
+          {
+            "name": "Gross Allocated",
+            "expression": "IF(HASONEVALUE('Batch'[BatchId]) && HASONEVALUE('Currency'[Currency]), COALESCE(SUM('SettlementLeg'[AllocatedAmount]),0), BLANK())",
+            "formatString": "#,0.00"
+          },
+          {
+            "name": "Gross Outstanding",
+            "expression": "IF(HASONEVALUE('Batch'[BatchId]) && HASONEVALUE('Currency'[Currency]), COALESCE(SUM('SettlementLeg'[OutstandingAmount]),0), BLANK())",
+            "formatString": "#,0.00"
+          },
+          {
+            "name": "Payments",
+            "expression": "IF(HASONEVALUE('Batch'[BatchId]), COALESCE(COUNTROWS('Payment'),0), BLANK())",
+            "formatString": "#,0"
+          },
+          {
+            "name": "Payment Exceptions",
+            "expression": "IF(HASONEVALUE('Batch'[BatchId]), COALESCE(CALCULATE(COUNTROWS('Payment'),'Payment'[PaymentStatus]<>\"matched\"),0), BLANK())",
+            "formatString": "#,0"
+          },
+          {
+            "name": "Duplicate Candidates",
+            "expression": "IF(HASONEVALUE('Batch'[BatchId]), COALESCE(CALCULATE(COUNTROWS('Payment'),'Payment'[PaymentStatus]=\"duplicate_candidate\"),0), BLANK())",
+            "formatString": "#,0"
+          },
+          {
+            "name": "Overpaid Payments",
+            "expression": "IF(HASONEVALUE('Batch'[BatchId]), COALESCE(CALCULATE(COUNTROWS('Payment'),'Payment'[PaymentStatus]=\"overpayment\"),0), BLANK())",
+            "formatString": "#,0"
+          },
+          {
+            "name": "Unapplied Payment Amount",
+            "expression": "IF(HASONEVALUE('Batch'[BatchId]) && HASONEVALUE('Currency'[Currency]), COALESCE(SUM('Payment'[UnappliedAmount]),0), BLANK())",
+            "formatString": "#,0.00"
+          }
+        ]
+      },
+      {
+        "name": "Payment",
+        "columns": [
+          {
+            "name": "BatchId",
+            "dataType": "string",
+            "sourceColumn": "BatchId"
+          },
+          {
+            "name": "PaymentId",
+            "dataType": "string",
+            "sourceColumn": "PaymentId"
+          },
+          {
+            "name": "Reference",
+            "dataType": "string",
+            "sourceColumn": "Reference"
+          },
+          {
+            "name": "Currency",
+            "dataType": "string",
+            "sourceColumn": "Currency"
+          },
+          {
+            "name": "Direction",
+            "dataType": "string",
+            "sourceColumn": "Direction"
+          },
+          {
+            "name": "PaymentDate",
+            "dataType": "dateTime",
+            "sourceColumn": "PaymentDate"
+          },
+          {
+            "name": "Amount",
+            "dataType": "decimal",
+            "sourceColumn": "Amount",
+            "formatString": "#,0.00"
+          },
+          {
+            "name": "AllocatedAmount",
+            "dataType": "decimal",
+            "sourceColumn": "AllocatedAmount",
+            "formatString": "#,0.00"
+          },
+          {
+            "name": "UnappliedAmount",
+            "dataType": "decimal",
+            "sourceColumn": "UnappliedAmount",
+            "formatString": "#,0.00"
+          },
+          {
+            "name": "PaymentStatus",
+            "dataType": "string",
+            "sourceColumn": "PaymentStatus"
+          },
+          {
+            "name": "Counterparty",
+            "dataType": "string",
+            "sourceColumn": "Counterparty"
+          },
+          {
+            "name": "Pair",
+            "dataType": "string",
+            "sourceColumn": "Pair"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Payment",
+            "mode": "import",
+            "source": {
+              "type": "query",
+              "dataSource": "FxWarehouse",
+              "query": "SELECT [BatchId],[PaymentId],[Reference],[Currency],[Direction],[PaymentDate],[Amount],[AllocatedAmount],[UnappliedAmount],[PaymentStatus],[Counterparty],[Pair] FROM analytics.[Payment]"
+            }
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "name": "SettlementLeg_Batch",
+        "fromTable": "SettlementLeg",
+        "fromColumn": "BatchId",
+        "toTable": "Batch",
+        "toColumn": "BatchId",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "SettlementLeg_Currency",
+        "fromTable": "SettlementLeg",
+        "fromColumn": "Currency",
+        "toTable": "Currency",
+        "toColumn": "Currency",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "SettlementLeg_Counterparty",
+        "fromTable": "SettlementLeg",
+        "fromColumn": "Counterparty",
+        "toTable": "Counterparty",
+        "toColumn": "Counterparty",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "SettlementLeg_CurrencyPair",
+        "fromTable": "SettlementLeg",
+        "fromColumn": "Pair",
+        "toTable": "CurrencyPair",
+        "toColumn": "Pair",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "SettlementLeg_Direction",
+        "fromTable": "SettlementLeg",
+        "fromColumn": "Direction",
+        "toTable": "Direction",
+        "toColumn": "Direction",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "Payment_Batch",
+        "fromTable": "Payment",
+        "fromColumn": "BatchId",
+        "toTable": "Batch",
+        "toColumn": "BatchId",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "Payment_Currency",
+        "fromTable": "Payment",
+        "fromColumn": "Currency",
+        "toTable": "Currency",
+        "toColumn": "Currency",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "Payment_Counterparty",
+        "fromTable": "Payment",
+        "fromColumn": "Counterparty",
+        "toTable": "Counterparty",
+        "toColumn": "Counterparty",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "Payment_CurrencyPair",
+        "fromTable": "Payment",
+        "fromColumn": "Pair",
+        "toTable": "CurrencyPair",
+        "toColumn": "Pair",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "Payment_Direction",
+        "fromTable": "Payment",
+        "fromColumn": "Direction",
+        "toTable": "Direction",
+        "toColumn": "Direction",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "SettlementLeg_DueDate",
+        "fromTable": "SettlementLeg",
+        "fromColumn": "DueDate",
+        "toTable": "SettlementDate",
+        "toColumn": "Date",
+        "crossFilteringBehavior": "oneDirection"
+      }
+    ],
+    "roles": [
+      {
+        "name": "DashboardReaders",
+        "modelPermission": "read",
+        "members": [
+          {
+            "memberName": "NT AUTHORITY\\LOCAL SERVICE",
+            "memberId": "S-1-5-19"
+          }
+        ]
+      }
+    ]
+  }
+}
